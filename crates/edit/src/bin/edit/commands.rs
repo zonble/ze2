@@ -36,6 +36,7 @@ pub enum Command {
     WordWrap,
     About,
     SaveAndExit,
+    SetWordWrapColumn,
 }
 
 pub struct CommandInvocation {
@@ -191,6 +192,18 @@ pub fn execute_command_invocation(
             }
         }
         Command::About => state.wants_about = true,
+        Command::SetWordWrapColumn => {
+            let col = argument
+                .as_deref()
+                .and_then(|s| s.trim().parse::<isize>().ok())
+                .unwrap_or(0)
+                .max(0);
+            // Enforce a minimum of 20 columns (0 means "no limit / full window width").
+            let col = if col > 0 { col.max(20) } else { 0 };
+            if let Some(doc) = state.documents.active() {
+                doc.buffer.borrow_mut().set_word_wrap_max_column(col);
+            }
+        }
     }
 
     ctx.needs_rerender();
@@ -487,6 +500,11 @@ const COMMANDS: &[CommandDefinition] = &[
         command: Command::WordWrap,
         names: &["word-wrap", "wrap"],
         loc_id: Some(LocId::ViewWordWrap),
+    },
+    CommandDefinition {
+        command: Command::SetWordWrapColumn,
+        names: &["set-word-wrap-column", "set-wrap-column"],
+        loc_id: None,
     },
     CommandDefinition {
         command: Command::About,

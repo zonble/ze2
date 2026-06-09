@@ -944,6 +944,16 @@ vi = "Ngắt dòng tự động"
 zh-hans = "自动换行"
 zh-hant = "自動換行"
 
+[ViewWordWrap60]
+en = "Set Word Wrap Column to 60"
+zh-hans = "设置自动换行列宽为 60"
+zh-hant = "設定自動換行字數為 60"
+
+[ViewWordWrap80]
+en = "Set Word Wrap Column to 80"
+zh-hans = "设置自动换行列宽为 80"
+zh-hant = "設定自動換行字數為 80"
+
 [ViewGoToFile]
 en = "Go to File…"
 ar = "الانتقال إلى ملف…"

@@ -258,6 +258,7 @@ pub struct TextBuffer {
     margin_width: CoordType,
     margin_enabled: bool,
     word_wrap_column: CoordType,
+    word_wrap_max_column: CoordType,
     word_wrap_enabled: bool,
     tab_size: CoordType,
     indent_with_tabs: bool,
@@ -308,6 +309,7 @@ impl TextBuffer {
             margin_width: 0,
             margin_enabled: false,
             word_wrap_column: 0,
+            word_wrap_max_column: 0,
             word_wrap_enabled: false,
             tab_size: 4,
             indent_with_tabs: false,
@@ -544,6 +546,25 @@ impl TextBuffer {
         }
     }
 
+    /// Returns the user-set maximum word-wrap column (0 = no limit, use full window width).
+    pub fn word_wrap_max_column(&self) -> CoordType {
+        self.word_wrap_max_column
+    }
+
+    /// Set the user-preferred maximum column for word-wrap.
+    /// A value of 0 means "use the full window width".
+    /// If the window is narrower than the given column, the window width wins.
+    /// Values between 1 and 19 are clamped up to 20.
+    pub fn set_word_wrap_max_column(&mut self, max_column: CoordType) {
+        // Enforce minimum of 20 (0 = no limit).
+        let max_column = if max_column > 0 { max_column.max(20) } else { 0 };
+        if self.word_wrap_max_column != max_column {
+            self.word_wrap_max_column = max_column;
+            self.width = 0; // Force a reflow.
+            self.make_cursor_visible();
+        }
+    }
+
     /// Set the width available for layout.
     ///
     /// Ideally this would be a pure UI concern, but the text buffer needs this
@@ -649,8 +670,16 @@ impl TextBuffer {
 
             let text_width = self.text_width();
             // 2 columns are required, because otherwise wide glyphs wouldn't ever fit.
-            self.word_wrap_column =
-                if self.word_wrap_enabled && text_width >= 2 { text_width } else { 0 };
+            self.word_wrap_column = if self.word_wrap_enabled && text_width >= 2 {
+                // If the user set a maximum column, use whichever is smaller.
+                if self.word_wrap_max_column > 0 {
+                    text_width.min(self.word_wrap_max_column)
+                } else {
+                    text_width
+                }
+            } else {
+                0
+            };
         }
 
         self.cursor_for_rendering = None;

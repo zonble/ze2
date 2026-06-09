@@ -7,7 +7,7 @@ use edit::input::{kbmod, vk};
 use edit::tui::*;
 use stdext::arena_format;
 
-use crate::commands::{Command, execute_command};
+use crate::commands::{Command, CommandInvocation, execute_command, execute_command_invocation};
 use crate::localization::*;
 use crate::settings::Settings;
 use crate::state::*;
@@ -113,6 +113,7 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
     if let Some(doc) = state.documents.active() {
         let tb = doc.buffer.borrow();
         let word_wrap = tb.is_word_wrap_enabled();
+        let word_wrap_max = tb.word_wrap_max_column();
         drop(tb);
 
         // All values on the statusbar are currently document specific.
@@ -127,6 +128,22 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
         }
         if ctx.menubar_menu_checkbox(loc(LocId::ViewWordWrap), 'W', kbmod::ALT | vk::Z, word_wrap) {
             execute_command(ctx, state, Command::WordWrap);
+        }
+        if ctx.menubar_menu_checkbox(loc(LocId::ViewWordWrap60), '6', vk::NULL, word_wrap_max == 60)
+        {
+            execute_command_invocation(
+                ctx,
+                state,
+                CommandInvocation { command: Command::SetWordWrapColumn, argument: Some("60".into()) },
+            );
+        }
+        if ctx.menubar_menu_checkbox(loc(LocId::ViewWordWrap80), '8', vk::NULL, word_wrap_max == 80)
+        {
+            execute_command_invocation(
+                ctx,
+                state,
+                CommandInvocation { command: Command::SetWordWrapColumn, argument: Some("80".into()) },
+            );
         }
     }
 
