@@ -37,6 +37,7 @@ pub enum Command {
     About,
     SaveAndExit,
     SetWordWrapColumn,
+    Menu,
 }
 
 pub struct CommandInvocation {
@@ -203,6 +204,10 @@ pub fn execute_command_invocation(
             if let Some(doc) = state.documents.active() {
                 doc.buffer.borrow_mut().set_word_wrap_max_column(col);
             }
+        }
+        Command::Menu => {
+            state.wants_menubar_focus = true;
+            state.wants_editor_focus = false;
         }
     }
 
@@ -504,6 +509,11 @@ const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::SetWordWrapColumn,
         names: &["set-word-wrap-column", "set-wrap-column"],
+        loc_id: None,
+    },
+    CommandDefinition {
+        command: Command::Menu,
+        names: &["menu"],
         loc_id: None,
     },
     CommandDefinition {

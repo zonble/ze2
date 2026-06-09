@@ -2709,6 +2709,7 @@ impl<'a> Context<'a, '_> {
                 vk::DELETE => match modifiers {
                     kbmod::SHIFT => tb.cut(self.clipboard_mut()),
                     kbmod::CTRL => tb.delete(CursorMovement::Word, 1),
+                    kbmod::ALT => return false, // handled by InsertShortcut (inserts 「。」)
                     _ => tb.delete(CursorMovement::Grapheme, 1),
                 },
                 vk::A => match modifiers {

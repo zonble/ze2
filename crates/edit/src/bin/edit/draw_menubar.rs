@@ -12,7 +12,7 @@ use crate::localization::*;
 use crate::settings::Settings;
 use crate::state::*;
 
-pub fn draw_menubar(ctx: &mut Context, state: &mut State) {
+pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool) {
     let focus_shortcut = ctx.keyboard_input().is_some_and(|key| key == vk::F10 || key == vk::F1);
     if !state.menubar_visible && !focus_shortcut {
         return;
@@ -23,12 +23,12 @@ pub fn draw_menubar(ctx: &mut Context, state: &mut State) {
     ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::Black));
     {
         let contains_focus = ctx.contains_focus();
-        state.menubar_visible = contains_focus || focus_shortcut;
+        state.menubar_visible = contains_focus || focus_shortcut || steal_focus_now;
 
         if ctx.menubar_menu_begin(loc(LocId::File), 'F') {
             draw_menu_file(ctx, state);
         }
-        if !contains_focus && (ctx.consume_shortcut(vk::F10) || ctx.consume_shortcut(vk::F1)) {
+        if !contains_focus && (ctx.consume_shortcut(vk::F10) || ctx.consume_shortcut(vk::F1) || steal_focus_now) {
             ctx.steal_focus();
         }
         if state.documents.active().is_some() {

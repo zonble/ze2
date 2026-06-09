@@ -324,7 +324,7 @@ fn print_version() {
 }
 
 fn draw(ctx: &mut Context, state: &mut State) {
-    draw_menubar(ctx, state);
+    draw_menubar(ctx, state, false);
 
     if should_focus_commandbar_before_editor(ctx, state) {
         state.command_bar_focus = true;
@@ -341,6 +341,14 @@ fn draw(ctx: &mut Context, state: &mut State) {
     draw_editor(ctx, state);
     draw_commandbar(ctx, state);
     draw_statusbar(ctx, state);
+
+    // If a command requested the menubar to receive focus, redraw the menubar
+    // after all other widgets so steal_focus() wins and isn't overridden.
+    if state.wants_menubar_focus {
+        state.wants_menubar_focus = false;
+        state.menubar_visible = true;
+        draw_menubar(ctx, state, true);
+    }
 
     if state.wants_close {
         draw_handle_wants_close(ctx, state);

@@ -165,6 +165,7 @@ pub struct State {
 
     pub wants_save: bool,
     pub wants_statusbar_focus: bool,
+    pub wants_menubar_focus: bool,
     pub wants_indentation_picker: bool,
     pub wants_go_to_file: bool,
     pub wants_about: bool,
@@ -222,6 +223,7 @@ impl State {
 
             wants_save: false,
             wants_statusbar_focus: false,
+            wants_menubar_focus: false,
             wants_encoding_change: StateEncodingChange::None,
             wants_indentation_picker: false,
             wants_go_to_file: false,
