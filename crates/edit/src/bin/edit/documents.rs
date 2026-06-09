@@ -285,6 +285,7 @@ impl DocumentManager {
             tb.set_insert_final_newline(!cfg!(windows)); // As mandated by POSIX.
             tb.set_margin_enabled(true);
             tb.set_line_highlight_enabled(true);
+            Settings::borrow().apply_to_buffer(&mut tb);
         }
         Ok(buffer)
     }

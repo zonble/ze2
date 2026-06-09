@@ -205,7 +205,12 @@ pub fn execute_command_invocation(
             if let Some(doc) = state.documents.active() {
                 let mut tb = doc.buffer.borrow_mut();
                 let word_wrap = tb.is_word_wrap_enabled();
-                tb.set_word_wrap(!word_wrap);
+                let word_wrap = !word_wrap;
+                tb.set_word_wrap(word_wrap);
+                drop(tb);
+                if let Err(err) = Settings::set_word_wrap(word_wrap) {
+                    error_log_add(ctx, state, err);
+                }
             }
         }
         Command::About => state.wants_about = true,
@@ -219,6 +224,9 @@ pub fn execute_command_invocation(
             let col = if col > 0 { col.max(20) } else { 0 };
             if let Some(doc) = state.documents.active() {
                 doc.buffer.borrow_mut().set_word_wrap_max_column(col);
+                if let Err(err) = Settings::set_word_wrap_column(col) {
+                    error_log_add(ctx, state, err);
+                }
             }
         }
         Command::Menu => {
@@ -376,6 +384,14 @@ mod tests {
             Some(CommandInvocation { command: Command::Goto, argument: None })
         ));
         assert!(matches!(
+            command_from_text("e"),
+            Some(CommandInvocation { command: Command::OpenFile, argument: None })
+        ));
+        assert!(matches!(
+            command_from_text("edit"),
+            Some(CommandInvocation { command: Command::OpenFile, argument: None })
+        ));
+        assert!(matches!(
             command_from_text("file"),
             Some(CommandInvocation { command: Command::SaveAndCloseFile, argument: None })
         ));
@@ -443,7 +459,7 @@ const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::OpenFile,
-        names: &["open", "open-file", "file-open"],
+        names: &["open", "open-file", "file-open", "e", "edit"],
         loc_id: Some(LocId::FileOpen),
     },
     CommandDefinition { command: Command::SaveAndCloseFile, names: &["file"], loc_id: None },
