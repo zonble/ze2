@@ -2518,6 +2518,32 @@ impl TextBuffer {
         self.set_selection(None);
     }
 
+    /// Deletes the logical line that contains the cursor.
+    pub fn delete_line(&mut self) {
+        let line = self.cursor.logical_pos.y;
+        let mut beg = self.cursor_move_to_logical_internal(self.cursor, Point { x: 0, y: line });
+        let mut end = self.cursor_move_to_logical_internal(beg, Point { x: 0, y: line + 1 });
+
+        // If this is the last logical line, delete the preceding newline too.
+        if line > 0 && line >= self.stats.logical_lines - 1 {
+            beg = self.cursor_move_to_logical_internal(
+                self.cursor,
+                Point { x: CoordType::MAX, y: line - 1 },
+            );
+            end = self.cursor_move_to_logical_internal(beg, Point { x: 0, y: line + 1 });
+        }
+
+        if beg.offset == end.offset {
+            return;
+        }
+
+        self.edit_begin(HistoryType::Delete, beg);
+        self.edit_delete(end);
+        self.edit_end();
+
+        self.set_selection(None);
+    }
+
     /// Returns the logical position of the first character on this line.
     /// Return `.x == 0` if there are no non-whitespace characters.
     pub fn indent_end_logical_pos(&self) -> Point {

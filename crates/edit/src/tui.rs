@@ -2400,12 +2400,11 @@ impl<'a> Context<'a, '_> {
 
             match key {
                 vk::BACK => {
-                    let granularity = if modifiers == kbmod::CTRL {
-                        CursorMovement::Word
+                    if modifiers == kbmod::CTRL {
+                        tb.delete_line();
                     } else {
-                        CursorMovement::Grapheme
-                    };
-                    tb.delete(granularity, -1);
+                        tb.delete(CursorMovement::Grapheme, -1);
+                    }
                 }
                 vk::TAB => {
                     if single_line {
