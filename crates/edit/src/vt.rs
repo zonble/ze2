@@ -92,7 +92,7 @@ impl Parser {
             //
             // However, there seems to be issues with OpenSSH on Windows.
             // See: https://github.com/PowerShell/Win32-OpenSSH/issues/2275
-            State::Esc => time::Duration::from_millis(100),
+            State::Esc | State::Csi | State::Osc | State::Dcs => time::Duration::from_millis(100),
             _ => time::Duration::MAX,
         }
     }
@@ -158,6 +158,18 @@ impl<'input> Stream<'_, 'input> {
         if input.is_empty() && matches!(self.parser.state, State::Esc) {
             self.parser.state = State::Ground;
             return Some(Token::Esc('\0'));
+        }
+        if input.is_empty() && matches!(self.parser.state, State::Csi) {
+            self.parser.state = State::Ground;
+            return Some(Token::Esc('['));
+        }
+        if input.is_empty() && matches!(self.parser.state, State::Osc) {
+            self.parser.state = State::Ground;
+            return Some(Token::Esc(']'));
+        }
+        if input.is_empty() && matches!(self.parser.state, State::Dcs) {
+            self.parser.state = State::Ground;
+            return Some(Token::Esc('P'));
         }
 
         while self.off < bytes.len() {

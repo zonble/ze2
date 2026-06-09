@@ -1013,6 +1013,8 @@ impl Tui {
                 }
 
                 if !tc.single_line {
+                    self.render_textarea_eof_marker(&tb, tc.scroll_offset, destination);
+
                     // Render the scrollbar.
                     let track = Rect {
                         left: inner_clipped.right - 1,
@@ -1050,6 +1052,27 @@ impl Tui {
             let mut child = child.borrow_mut();
             self.render_node(&mut child);
         }
+    }
+
+    fn render_textarea_eof_marker(
+        &mut self,
+        tb: &TextBuffer,
+        scroll_offset: Point,
+        destination: Rect,
+    ) {
+        const EOF_MARKER: &str = "=== END OF FILE ===";
+
+        let y = tb.visual_line_count() - scroll_offset.y;
+        if y < 0 || y >= destination.height() {
+            return;
+        }
+
+        self.framebuffer.replace_text(
+            destination.top + y,
+            destination.left + tb.margin_width() - scroll_offset.x,
+            destination.right,
+            EOF_MARKER,
+        );
     }
 
     fn render_styled_text(

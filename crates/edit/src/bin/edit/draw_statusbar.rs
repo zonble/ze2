@@ -18,8 +18,8 @@ use crate::state::*;
 pub fn draw_statusbar(ctx: &mut Context, state: &mut State) {
     ctx.table_begin("statusbar");
     ctx.attr_focus_well();
-    ctx.attr_background_rgba(state.menubar_color_bg);
-    ctx.attr_foreground_rgba(state.menubar_color_fg);
+    ctx.attr_background_rgba(ctx.indexed(IndexedColor::Black));
+    ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightWhite));
     ctx.table_set_cell_gap(Size { width: 2, height: 0 });
     ctx.attr_intrinsic_size(Size { width: COORD_TYPE_SAFE_MAX, height: 1 });
     ctx.attr_padding(Rect::two(0, 1));

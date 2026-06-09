@@ -330,6 +330,13 @@ fn draw(ctx: &mut Context, state: &mut State) {
         state.command_bar_focus = true;
         ctx.set_input_consumed();
     }
+    if focus_commandbar_shortcut_before_editor(ctx, state) {
+        ctx.set_input_consumed();
+    }
+    if let Some(invocation) = insert_text_invocation_before_editor(ctx, state) {
+        execute_command_invocation(ctx, state, invocation);
+        ctx.set_input_consumed();
+    }
 
     draw_editor(ctx, state);
     draw_commandbar(ctx, state);
@@ -372,8 +379,8 @@ fn draw(ctx: &mut Context, state: &mut State) {
     if let Some(key) = ctx.keyboard_input() {
         // Shortcuts that are not handled as part of the textarea, etc.
 
-        if let Some(command) = command_from_shortcut(key) {
-            execute_command(ctx, state, command);
+        if let Some(invocation) = command_invocation_from_shortcut(key) {
+            execute_command_invocation(ctx, state, invocation);
         } else if key == vk::F3 {
             search_execute(ctx, state, SearchAction::Search);
         } else {
@@ -384,6 +391,39 @@ fn draw(ctx: &mut Context, state: &mut State) {
         ctx.needs_rerender();
         ctx.set_input_consumed();
     }
+}
+
+fn focus_commandbar_shortcut_before_editor(ctx: &Context, state: &mut State) -> bool {
+    if !matches!(state.wants_search.kind, StateSearchKind::Hidden | StateSearchKind::Disabled)
+        || state.wants_dialog()
+        || ctx.clipboard_ref().wants_host_sync()
+    {
+        return false;
+    }
+
+    let Some(shortcut) = ctx.keyboard_input().and_then(commandbar_shortcut_from_key) else {
+        return false;
+    };
+
+    state.command_bar_input.clear();
+    state.command_bar_input.push_str(shortcut.text);
+    state.command_bar_error.clear();
+    state.command_bar_active = true;
+    state.command_bar_focus = true;
+    true
+}
+
+fn insert_text_invocation_before_editor(ctx: &Context, state: &State) -> Option<CommandInvocation> {
+    if state.command_bar_active
+        || !matches!(state.wants_search.kind, StateSearchKind::Hidden | StateSearchKind::Disabled)
+        || state.wants_dialog()
+        || ctx.clipboard_ref().wants_host_sync()
+    {
+        return None;
+    }
+
+    let invocation = command_invocation_from_shortcut(ctx.keyboard_input()?)?;
+    should_handle_command_shortcut_before_editor(invocation.command).then_some(invocation)
 }
 
 fn should_focus_commandbar_before_editor(ctx: &Context, state: &State) -> bool {

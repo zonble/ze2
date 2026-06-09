@@ -6,7 +6,7 @@ use edit::helpers::*;
 use edit::input::vk;
 use edit::tui::*;
 
-use crate::commands::{command_from_text, execute_command};
+use crate::commands::{command_from_text, execute_command_invocation};
 use crate::state::*;
 
 pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
@@ -63,12 +63,12 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
 
     if execute {
         let input = state.command_bar_input.trim();
-        if let Some(command) = command_from_text(input) {
+        if let Some(invocation) = command_from_text(input) {
             state.command_bar_input.clear();
             state.command_bar_error.clear();
             state.command_bar_active = false;
             state.wants_editor_focus = true;
-            execute_command(ctx, state, command);
+            execute_command_invocation(ctx, state, invocation);
         } else if !input.is_empty() {
             state.command_bar_error = "Unknown command".to_string();
             ctx.needs_rerender();

@@ -109,6 +109,16 @@ pub mod vk {
     pub const RETURN: InputKey = InputKey::new('\r' as u32);
     pub const ESCAPE: InputKey = InputKey::new(0x1B);
     pub const SPACE: InputKey = InputKey::new(' ' as u32);
+    pub const EXCLAMATION: InputKey = InputKey::new('!' as u32);
+    pub const APOSTROPHE: InputKey = InputKey::new('\'' as u32);
+    pub const COMMA: InputKey = InputKey::new(',' as u32);
+    pub const PERIOD: InputKey = InputKey::new('.' as u32);
+    pub const COLON: InputKey = InputKey::new(':' as u32);
+    pub const SEMICOLON: InputKey = InputKey::new(';' as u32);
+    pub const LBRACKET: InputKey = InputKey::new('[' as u32);
+    pub const RBRACKET: InputKey = InputKey::new(']' as u32);
+    pub const LBRACE: InputKey = InputKey::new('{' as u32);
+    pub const RBRACE: InputKey = InputKey::new('}' as u32);
     pub const PRIOR: InputKey = InputKey::new(0x21);
     pub const NEXT: InputKey = InputKey::new(0x22);
 
@@ -348,10 +358,13 @@ impl<'input> Iterator for Stream<'_, '_, 'input> {
                         '\0' => return Some(Input::Keyboard(vk::ESCAPE)),
                         '\n' => return Some(Input::Keyboard(kbmod::CTRL_ALT | vk::RETURN)),
                         ' '..='~' => {
-                            let ch = ch as u32;
-                            let key = ch & !0x20; // Shift a-z to A-Z
                             let modifiers =
-                                if (ch & 0x20) != 0 { kbmod::ALT } else { kbmod::ALT_SHIFT };
+                                if ch.is_ascii_uppercase() { kbmod::ALT_SHIFT } else { kbmod::ALT };
+                            let key = if ch.is_ascii_lowercase() {
+                                ch as u32 & !0x20 // Shift a-z to A-Z
+                            } else {
+                                ch as u32
+                            };
                             return Some(Input::Keyboard(modifiers | InputKey::new(key)));
                         }
                         _ => {}
@@ -448,6 +461,11 @@ impl<'input> Iterator for Stream<'_, '_, 'input> {
                             let width = (csi.params[2] as CoordType).clamp(1, 32767);
                             let height = (csi.params[1] as CoordType).clamp(1, 32767);
                             return Some(Input::Resize(Size { width, height }));
+                        }
+                        'u' if csi.param_count >= 1 => {
+                            return Some(Input::Keyboard(
+                                InputKey::new(csi.params[0] as u32) | Self::parse_modifiers(csi),
+                            ));
                         }
                         _ => {}
                     }
