@@ -240,6 +240,7 @@ pub fn draw_file_picker(ctx: &mut Context, state: &mut State) {
         }
     }
 
+    let mut save_succeeded = false;
     if let Some(path) = doit {
         let res = if state.wants_file_picker == StateFilePicker::Open {
             state.documents.add_file_path(&path).map(|_| ())
@@ -252,6 +253,7 @@ pub fn draw_file_picker(ctx: &mut Context, state: &mut State) {
             Ok(..) => {
                 ctx.needs_rerender();
                 done = true;
+                save_succeeded = true;
             }
             Err(err) => error_log_add(ctx, state, err),
         }
@@ -263,6 +265,12 @@ pub fn draw_file_picker(ctx: &mut Context, state: &mut State) {
         state.file_picker_entries = Default::default();
         state.file_picker_overwrite_warning = Default::default();
         state.file_picker_autocomplete = Default::default();
+        if state.wants_exit_after_save {
+            state.wants_exit_after_save = false;
+            if save_succeeded {
+                state.wants_exit = true;
+            }
+        }
     }
 }
 

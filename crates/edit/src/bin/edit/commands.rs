@@ -35,6 +35,7 @@ pub enum Command {
     Goto,
     WordWrap,
     About,
+    SaveAndExit,
 }
 
 pub struct CommandInvocation {
@@ -80,6 +81,33 @@ pub fn execute_command_invocation(
             }
         }
         Command::SaveAs => state.wants_file_picker = StateFilePicker::SaveAs,
+        Command::SaveAndExit => {
+            let mut save_succeeded = false;
+            if let Some(path) = command_path_argument(&argument) {
+                if let Some(doc) = state.documents.active_mut() {
+                    match doc.save(Some(path)) {
+                        Ok(()) => save_succeeded = true,
+                        Err(err) => error_log_add(ctx, state, err),
+                    }
+                }
+            } else if let Some(doc) = state.documents.active_mut() {
+                if doc.path.is_some() {
+                    match doc.save(None) {
+                        Ok(()) => save_succeeded = true,
+                        Err(err) => error_log_add(ctx, state, err),
+                    }
+                } else {
+                    state.wants_file_picker = StateFilePicker::SaveAs;
+                    state.wants_exit_after_save = true;
+                }
+            } else {
+                state.wants_exit = true;
+            }
+
+            if save_succeeded {
+                state.wants_exit = true;
+            }
+        }
         Command::Preferences => {
             let settings = Settings::borrow();
             let path = settings.path.as_path();
@@ -313,6 +341,10 @@ mod tests {
             command_from_text("Go to Line:Column..."),
             Some(CommandInvocation { command: Command::Goto, argument: None })
         ));
+        assert!(matches!(
+            command_from_text("file"),
+            Some(CommandInvocation { command: Command::SaveAndExit, argument: None })
+        ));
     }
 
     #[test]
@@ -373,9 +405,10 @@ const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::OpenFile,
-        names: &["open", "file", "open-file", "file-open"],
+        names: &["open", "open-file", "file-open"],
         loc_id: Some(LocId::FileOpen),
     },
+    CommandDefinition { command: Command::SaveAndExit, names: &["file"], loc_id: None },
     CommandDefinition {
         command: Command::Save,
         names: &["save", "file-save"],
