@@ -271,6 +271,14 @@ pub fn draw_file_picker(ctx: &mut Context, state: &mut State) {
                 state.wants_exit = true;
             }
         }
+        if state.wants_close_after_save {
+            state.wants_close_after_save = false;
+            if save_succeeded {
+                state.wants_close = true;
+            } else {
+                state.wants_exit_after_close = false;
+            }
+        }
     }
 }
 

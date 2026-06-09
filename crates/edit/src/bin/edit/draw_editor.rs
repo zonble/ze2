@@ -217,12 +217,12 @@ pub fn draw_handle_save(ctx: &mut Context, state: &mut State) {
 pub fn draw_handle_wants_close(ctx: &mut Context, state: &mut State) {
     let Some(doc) = state.documents.active() else {
         state.wants_close = false;
+        state.wants_exit_after_close = false;
         return;
     };
 
     if !doc.buffer.borrow().is_dirty() {
-        state.documents.remove_active();
-        state.wants_close = false;
+        close_active_document(state);
         ctx.needs_rerender();
         return;
     }
@@ -290,19 +290,47 @@ pub fn draw_handle_wants_close(ctx: &mut Context, state: &mut State) {
     match action {
         Action::None => return,
         Action::Save => {
-            state.wants_save = true;
+            if let Some(doc) = state.documents.active_mut() {
+                if doc.path.is_some() {
+                    match doc.save(None) {
+                        Ok(()) => close_active_document(state),
+                        Err(err) => error_log_add(ctx, state, err),
+                    }
+                } else {
+                    state.wants_file_picker = StateFilePicker::SaveAs;
+                    if state.wants_exit {
+                        state.wants_exit = false;
+                        state.wants_exit_after_save = true;
+                    } else {
+                        state.wants_close_after_save = true;
+                    }
+                    state.wants_close = false;
+                }
+            }
         }
         Action::Discard => {
-            state.documents.remove_active();
-            state.wants_close = false;
+            close_active_document(state);
         }
         Action::Cancel => {
             state.wants_exit = false;
             state.wants_close = false;
+            state.wants_exit_after_close = false;
         }
     }
 
     ctx.needs_rerender();
+}
+
+fn close_active_document(state: &mut State) {
+    state.documents.remove_active();
+    state.wants_close = false;
+
+    if state.wants_exit_after_close {
+        state.wants_exit_after_close = false;
+        if state.documents.len() == 0 {
+            state.exit = true;
+        }
+    }
 }
 
 pub fn draw_goto_menu(ctx: &mut Context, state: &mut State) {

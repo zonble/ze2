@@ -35,7 +35,8 @@ pub enum Command {
     Goto,
     WordWrap,
     About,
-    SaveAndExit,
+    SaveAndCloseFile,
+    CloseFileAndExitIfLast,
     SetWordWrapColumn,
     Menu,
 }
@@ -83,9 +84,14 @@ pub fn execute_command_invocation(
             }
         }
         Command::SaveAs => state.wants_file_picker = StateFilePicker::SaveAs,
-        Command::SaveAndExit => {
+        Command::SaveAndCloseFile => {
             let mut save_succeeded = false;
-            if let Some(path) = command_path_argument(&argument) {
+            if let Some(doc) = state.documents.active()
+                && !doc.buffer.borrow().is_dirty()
+            {
+                state.wants_close = true;
+                state.wants_exit_after_close = true;
+            } else if let Some(path) = command_path_argument(&argument) {
                 if let Some(doc) = state.documents.active_mut() {
                     match doc.save(Some(path)) {
                         Ok(()) => save_succeeded = true,
@@ -100,14 +106,16 @@ pub fn execute_command_invocation(
                     }
                 } else {
                     state.wants_file_picker = StateFilePicker::SaveAs;
-                    state.wants_exit_after_save = true;
+                    state.wants_close_after_save = true;
+                    state.wants_exit_after_close = true;
                 }
             } else {
                 state.wants_exit = true;
             }
 
             if save_succeeded {
-                state.wants_exit = true;
+                state.wants_close = true;
+                state.wants_exit_after_close = true;
             }
         }
         Command::Preferences => {
@@ -127,6 +135,14 @@ pub fn execute_command_invocation(
             }
         }
         Command::CloseFile => state.wants_close = true,
+        Command::CloseFileAndExitIfLast => {
+            if state.documents.active().is_some() {
+                state.wants_close = true;
+                state.wants_exit_after_close = true;
+            } else {
+                state.wants_exit = true;
+            }
+        }
         Command::Exit => state.wants_exit = true,
         Command::Undo => {
             if let Some(doc) = state.documents.active() {
@@ -361,7 +377,11 @@ mod tests {
         ));
         assert!(matches!(
             command_from_text("file"),
-            Some(CommandInvocation { command: Command::SaveAndExit, argument: None })
+            Some(CommandInvocation { command: Command::SaveAndCloseFile, argument: None })
+        ));
+        assert!(matches!(
+            command_from_text("quit"),
+            Some(CommandInvocation { command: Command::CloseFileAndExitIfLast, argument: None })
         ));
     }
 
@@ -426,7 +446,7 @@ const COMMANDS: &[CommandDefinition] = &[
         names: &["open", "open-file", "file-open"],
         loc_id: Some(LocId::FileOpen),
     },
-    CommandDefinition { command: Command::SaveAndExit, names: &["file"], loc_id: None },
+    CommandDefinition { command: Command::SaveAndCloseFile, names: &["file"], loc_id: None },
     CommandDefinition {
         command: Command::Save,
         names: &["save", "file-save"],
@@ -447,11 +467,8 @@ const COMMANDS: &[CommandDefinition] = &[
         names: &["close", "close-file", "file-close"],
         loc_id: Some(LocId::FileClose),
     },
-    CommandDefinition {
-        command: Command::Exit,
-        names: &["exit", "quit"],
-        loc_id: Some(LocId::FileExit),
-    },
+    CommandDefinition { command: Command::Exit, names: &["exit"], loc_id: Some(LocId::FileExit) },
+    CommandDefinition { command: Command::CloseFileAndExitIfLast, names: &["quit"], loc_id: None },
     CommandDefinition { command: Command::Undo, names: &["undo"], loc_id: Some(LocId::EditUndo) },
     CommandDefinition { command: Command::Redo, names: &["redo"], loc_id: Some(LocId::EditRedo) },
     CommandDefinition { command: Command::Cut, names: &["cut"], loc_id: Some(LocId::EditCut) },
@@ -511,11 +528,7 @@ const COMMANDS: &[CommandDefinition] = &[
         names: &["set-word-wrap-column", "set-wrap-column"],
         loc_id: None,
     },
-    CommandDefinition {
-        command: Command::Menu,
-        names: &["menu"],
-        loc_id: None,
-    },
+    CommandDefinition { command: Command::Menu, names: &["menu"], loc_id: None },
     CommandDefinition {
         command: Command::About,
         names: &["about"],
