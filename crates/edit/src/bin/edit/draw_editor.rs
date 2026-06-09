@@ -24,11 +24,15 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
         StateSearchKind::Search => 4,
         StateSearchKind::Replace => 5,
         _ => 2,
-    };
+    } + 1;
 
     if let Some(doc) = state.documents.active() {
         ctx.textarea("textarea", doc.buffer.clone());
         ctx.inherit_focus();
+        if state.wants_editor_focus {
+            state.wants_editor_focus = false;
+            ctx.steal_focus();
+        }
     } else {
         ctx.block_begin("empty");
         ctx.block_end();

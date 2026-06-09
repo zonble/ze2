@@ -172,6 +172,12 @@ pub struct State {
     pub wants_goto: bool,
     pub goto_target: String,
     pub goto_invalid: bool,
+    pub wants_editor_focus: bool,
+
+    pub command_bar_active: bool,
+    pub command_bar_focus: bool,
+    pub command_bar_input: String,
+    pub command_bar_error: String,
 
     pub osc_title_file_status: OscTitleFileStatus,
     pub osc_clipboard_sync: bool,
@@ -222,6 +228,12 @@ impl State {
             wants_goto: false,
             goto_target: Default::default(),
             goto_invalid: false,
+            wants_editor_focus: false,
+
+            command_bar_active: false,
+            command_bar_focus: false,
+            command_bar_input: Default::default(),
+            command_bar_error: Default::default(),
 
             osc_title_file_status: Default::default(),
             osc_clipboard_sync: false,
@@ -240,6 +252,18 @@ impl State {
         self.error_log_index = (self.error_log_index + 1) % self.error_log.len();
         self.error_log_count = self.error_log.len().min(self.error_log_count + 1);
         true
+    }
+
+    pub fn wants_dialog(&self) -> bool {
+        self.wants_close
+            || self.wants_exit
+            || self.wants_goto
+            || self.wants_file_picker != StateFilePicker::None
+            || self.wants_language_picker
+            || self.wants_encoding_change != StateEncodingChange::None
+            || self.wants_go_to_file
+            || self.wants_about
+            || self.error_log_count != 0
     }
 }
 

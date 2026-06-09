@@ -6,6 +6,7 @@ use edit::input::{kbmod, vk};
 use edit::tui::*;
 use stdext::arena_format;
 
+use crate::commands::{Command, execute_command};
 use crate::localization::*;
 use crate::settings::Settings;
 use crate::state::*;
@@ -40,105 +41,84 @@ pub fn draw_menubar(ctx: &mut Context, state: &mut State) {
 
 fn draw_menu_file(ctx: &mut Context, state: &mut State) {
     if ctx.menubar_menu_button(loc(LocId::FileNew), 'N', kbmod::CTRL | vk::N) {
-        draw_add_untitled_document(ctx, state);
+        execute_command(ctx, state, Command::NewFile);
     }
     if ctx.menubar_menu_button(loc(LocId::FileOpen), 'O', kbmod::CTRL | vk::O) {
-        state.wants_file_picker = StateFilePicker::Open;
+        execute_command(ctx, state, Command::OpenFile);
     }
     if state.documents.active().is_some() {
         if ctx.menubar_menu_button(loc(LocId::FileSave), 'S', kbmod::CTRL | vk::S) {
-            state.wants_save = true;
+            execute_command(ctx, state, Command::Save);
         }
         if ctx.menubar_menu_button(loc(LocId::FileSaveAs), 'A', vk::NULL) {
-            state.wants_file_picker = StateFilePicker::SaveAs;
+            execute_command(ctx, state, Command::SaveAs);
         }
     }
-    #[allow(irrefutable_let_patterns)]
-    if let path = Settings::borrow().path.as_path()
-        && !path.as_os_str().is_empty()
+    let settings = Settings::borrow();
+    if !settings.path.as_path().as_os_str().is_empty()
         && ctx.menubar_menu_button(loc(LocId::FilePreferences), 'P', vk::NULL)
     {
-        match state.documents.add_file_path(path) {
-            Ok(doc) => {
-                if let mut tb = doc.buffer.borrow_mut()
-                    && tb.text_length() == 0
-                {
-                    Settings::bootstrap(&mut tb);
-                }
-            }
-            Err(err) => error_log_add(ctx, state, err),
-        }
+        execute_command(ctx, state, Command::Preferences);
     }
     if state.documents.active().is_some()
         && ctx.menubar_menu_button(loc(LocId::FileClose), 'C', kbmod::CTRL | vk::W)
     {
-        state.wants_close = true;
+        execute_command(ctx, state, Command::CloseFile);
     }
     if ctx.menubar_menu_button(loc(LocId::FileExit), 'X', kbmod::CTRL | vk::Q) {
-        state.wants_exit = true;
+        execute_command(ctx, state, Command::Exit);
     }
     ctx.menubar_menu_end();
 }
 
 fn draw_menu_edit(ctx: &mut Context, state: &mut State) {
-    let doc = state.documents.active().unwrap();
-    let mut tb = doc.buffer.borrow_mut();
-
     if ctx.menubar_menu_button(loc(LocId::EditUndo), 'U', kbmod::CTRL | vk::Z) {
-        tb.undo();
-        ctx.needs_rerender();
+        execute_command(ctx, state, Command::Undo);
     }
     if ctx.menubar_menu_button(loc(LocId::EditRedo), 'R', kbmod::CTRL | vk::Y) {
-        tb.redo();
-        ctx.needs_rerender();
+        execute_command(ctx, state, Command::Redo);
     }
     if ctx.menubar_menu_button(loc(LocId::EditCut), 'T', kbmod::CTRL | vk::X) {
-        tb.cut(ctx.clipboard_mut());
-        ctx.needs_rerender();
+        execute_command(ctx, state, Command::Cut);
     }
     if ctx.menubar_menu_button(loc(LocId::EditCopy), 'C', kbmod::CTRL | vk::C) {
-        tb.copy(ctx.clipboard_mut());
-        ctx.needs_rerender();
+        execute_command(ctx, state, Command::Copy);
     }
     if ctx.menubar_menu_button(loc(LocId::EditPaste), 'P', kbmod::CTRL | vk::V) {
-        tb.paste(ctx.clipboard_ref(), false);
-        ctx.needs_rerender();
+        execute_command(ctx, state, Command::Paste);
     }
     if state.wants_search.kind != StateSearchKind::Disabled {
         if ctx.menubar_menu_button(loc(LocId::EditFind), 'F', kbmod::CTRL | vk::F) {
-            state.wants_search.kind = StateSearchKind::Search;
-            state.wants_search.focus = true;
+            execute_command(ctx, state, Command::Find);
         }
         if ctx.menubar_menu_button(loc(LocId::EditReplace), 'L', kbmod::CTRL | vk::R) {
-            state.wants_search.kind = StateSearchKind::Replace;
-            state.wants_search.focus = true;
+            execute_command(ctx, state, Command::Replace);
         }
     }
     if ctx.menubar_menu_button(loc(LocId::EditSelectAll), 'A', kbmod::CTRL | vk::A) {
-        tb.select_all();
-        ctx.needs_rerender();
+        execute_command(ctx, state, Command::SelectAll);
     }
     ctx.menubar_menu_end();
 }
 
 fn draw_menu_view(ctx: &mut Context, state: &mut State) {
     if let Some(doc) = state.documents.active() {
-        let mut tb = doc.buffer.borrow_mut();
+        let tb = doc.buffer.borrow();
         let word_wrap = tb.is_word_wrap_enabled();
+        drop(tb);
 
         // All values on the statusbar are currently document specific.
         if ctx.menubar_menu_button(loc(LocId::ViewFocusStatusbar), 'S', vk::NULL) {
-            state.wants_statusbar_focus = true;
+            execute_command(ctx, state, Command::FocusStatusbar);
         }
         if ctx.menubar_menu_button(loc(LocId::ViewGoToFile), 'F', kbmod::CTRL | vk::P) {
-            state.wants_go_to_file = true;
+            execute_command(ctx, state, Command::GoToFile);
         }
         if ctx.menubar_menu_button(loc(LocId::FileGoto), 'G', kbmod::CTRL | vk::G) {
-            state.wants_goto = true;
+            execute_command(ctx, state, Command::Goto);
         }
         if ctx.menubar_menu_checkbox(loc(LocId::ViewWordWrap), 'W', kbmod::ALT | vk::Z, word_wrap) {
-            tb.set_word_wrap(!word_wrap);
-            ctx.needs_rerender();
+            execute_command(ctx, state, Command::WordWrap);
         }
     }
 
@@ -147,7 +127,7 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
 
 fn draw_menu_help(ctx: &mut Context, state: &mut State) {
     if ctx.menubar_menu_button(loc(LocId::HelpAbout), 'A', vk::NULL) {
-        state.wants_about = true;
+        execute_command(ctx, state, Command::About);
     }
     ctx.menubar_menu_end();
 }

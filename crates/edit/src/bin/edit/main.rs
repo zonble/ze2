@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 mod apperr;
+mod commands;
 mod documents;
+mod draw_commandbar;
 mod draw_editor;
 mod draw_filepicker;
 mod draw_menubar;
@@ -16,13 +18,15 @@ use std::path::Path;
 use std::time::Duration;
 use std::{env, process};
 
+use commands::*;
+use draw_commandbar::*;
 use draw_editor::*;
 use draw_filepicker::*;
 use draw_menubar::*;
 use draw_statusbar::*;
 use edit::framebuffer::{self, IndexedColor};
 use edit::helpers::*;
-use edit::input::{self, kbmod, vk};
+use edit::input::{self, vk};
 use edit::oklab::StraightRgba;
 use edit::tui::*;
 use edit::vt::{self, Token};
@@ -321,7 +325,14 @@ fn print_version() {
 
 fn draw(ctx: &mut Context, state: &mut State) {
     draw_menubar(ctx, state);
+
+    if should_focus_commandbar_before_editor(ctx, state) {
+        state.command_bar_focus = true;
+        ctx.set_input_consumed();
+    }
+
     draw_editor(ctx, state);
+    draw_commandbar(ctx, state);
     draw_statusbar(ctx, state);
 
     if state.wants_close {
@@ -361,30 +372,8 @@ fn draw(ctx: &mut Context, state: &mut State) {
     if let Some(key) = ctx.keyboard_input() {
         // Shortcuts that are not handled as part of the textarea, etc.
 
-        if key == kbmod::CTRL | vk::N {
-            draw_add_untitled_document(ctx, state);
-        } else if key == kbmod::CTRL | vk::O {
-            state.wants_file_picker = StateFilePicker::Open;
-        } else if key == kbmod::CTRL | vk::S {
-            state.wants_save = true;
-        } else if key == kbmod::CTRL_SHIFT | vk::S {
-            state.wants_file_picker = StateFilePicker::SaveAs;
-        } else if key == kbmod::CTRL | vk::W {
-            state.wants_close = true;
-        } else if key == kbmod::CTRL | vk::P {
-            state.wants_go_to_file = true;
-        } else if key == kbmod::CTRL | vk::Q {
-            state.wants_exit = true;
-        } else if key == kbmod::CTRL | vk::G {
-            state.wants_goto = true;
-        } else if key == kbmod::CTRL | vk::F && state.wants_search.kind != StateSearchKind::Disabled
-        {
-            state.wants_search.kind = StateSearchKind::Search;
-            state.wants_search.focus = true;
-        } else if key == kbmod::CTRL | vk::R && state.wants_search.kind != StateSearchKind::Disabled
-        {
-            state.wants_search.kind = StateSearchKind::Replace;
-            state.wants_search.focus = true;
+        if let Some(command) = command_from_shortcut(key) {
+            execute_command(ctx, state, command);
         } else if key == vk::F3 {
             search_execute(ctx, state, SearchAction::Search);
         } else {
@@ -395,6 +384,13 @@ fn draw(ctx: &mut Context, state: &mut State) {
         ctx.needs_rerender();
         ctx.set_input_consumed();
     }
+}
+
+fn should_focus_commandbar_before_editor(ctx: &Context, state: &State) -> bool {
+    ctx.keyboard_input() == Some(vk::ESCAPE)
+        && matches!(state.wants_search.kind, StateSearchKind::Hidden | StateSearchKind::Disabled)
+        && !state.wants_dialog()
+        && !ctx.clipboard_ref().wants_host_sync()
 }
 
 fn draw_handle_wants_exit(_ctx: &mut Context, state: &mut State) {
