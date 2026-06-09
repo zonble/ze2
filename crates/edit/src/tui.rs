@@ -1742,12 +1742,37 @@ impl<'a> Context<'a, '_> {
     /// Checks if the current keyboard input matches the given shortcut,
     /// consumes it if it is and returns true in that case.
     pub fn consume_shortcut(&mut self, shortcut: InputKey) -> bool {
-        if !self.input_consumed && self.input_keyboard == Some(shortcut) {
+        if !self.input_consumed && self.matches_shortcut(shortcut) {
             self.set_input_consumed();
             true
         } else {
             false
         }
+    }
+
+    /// Checks if the current input matches the given shortcut.
+    pub fn matches_shortcut(&self, shortcut: InputKey) -> bool {
+        if self.input_keyboard == Some(shortcut) {
+            return true;
+        }
+
+        if shortcut.modifiers() != kbmod::NONE {
+            return false;
+        }
+
+        let Some(input) = self.input_text else {
+            return false;
+        };
+        let mut chars = input.chars();
+        let Some(ch) = chars.next() else {
+            return false;
+        };
+        if chars.next().is_some() || !ch.is_ascii() {
+            return false;
+        }
+
+        let ch = if ch.is_ascii_lowercase() { (ch as u8 & !0x20) as char } else { ch };
+        InputKey::new(ch as u32) == shortcut
     }
 
     /// Returns current keyboard input, if any.
@@ -3190,8 +3215,18 @@ impl<'a> Context<'a, '_> {
     ///
     /// Returns true if the menu is open. Continue appending items to it in that case.
     pub fn menubar_menu_begin(&mut self, text: &str, accelerator: char) -> bool {
-        let accelerator =
-            if cfg!(any(target_os = "macos", target_os = "ios")) { '\0' } else { accelerator };
+        self.menubar_menu_begin_selected(text, accelerator, false)
+    }
+
+    /// Appends a menu to the current menubar, optionally forcing it open.
+    ///
+    /// Returns true if the menu is open. Continue appending items to it in that case.
+    pub fn menubar_menu_begin_selected(
+        &mut self,
+        text: &str,
+        accelerator: char,
+        selected: bool,
+    ) -> bool {
         let mixin = self.tree.current_node.borrow().child_count as u64;
         self.next_block_id_mixin(mixin);
 
@@ -3206,9 +3241,13 @@ impl<'a> Context<'a, '_> {
         let contains_focus = self.contains_focus();
         let keyboard_focus = accelerator != '\0'
             && !contains_focus
-            && self.consume_shortcut(kbmod::ALT | InputKey::new(accelerator as u32));
+            && (selected || self.consume_shortcut(kbmod::ALT | InputKey::new(accelerator as u32)));
 
         if contains_focus || keyboard_focus {
+            if selected && !self.input_consumed {
+                self.set_input_consumed();
+            }
+
             self.attr_background_rgba(self.tui.floater_default_bg);
             self.attr_foreground_rgba(self.tui.floater_default_fg);
 

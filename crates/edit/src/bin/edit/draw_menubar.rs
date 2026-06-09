@@ -13,7 +13,12 @@ use crate::settings::Settings;
 use crate::state::*;
 
 pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool) {
-    let focus_shortcut = ctx.keyboard_input().is_some_and(|key| key == vk::F10 || key == vk::F1);
+    let menubar_was_visible = state.menubar_visible;
+    let focus_shortcut = ctx.keyboard_input().is_some_and(|key| key == vk::F10 || key == vk::F1)
+        || menu_shortcut_selected(ctx, menubar_was_visible, vk::F)
+        || menu_shortcut_selected(ctx, menubar_was_visible, vk::E)
+        || menu_shortcut_selected(ctx, menubar_was_visible, vk::V)
+        || menu_shortcut_selected(ctx, menubar_was_visible, vk::H);
     if !state.menubar_visible && !focus_shortcut {
         return;
     }
@@ -25,26 +30,52 @@ pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool)
         let contains_focus = ctx.contains_focus();
         state.menubar_visible = contains_focus || focus_shortcut || steal_focus_now;
 
-        if ctx.menubar_menu_begin(loc(LocId::File), 'F') {
+        if ctx.menubar_menu_begin_selected(
+            loc(LocId::File),
+            'F',
+            menu_shortcut_selected(ctx, menubar_was_visible, vk::F),
+        ) {
             draw_menu_file(ctx, state);
         }
-        if !contains_focus && (ctx.consume_shortcut(vk::F10) || ctx.consume_shortcut(vk::F1) || steal_focus_now) {
+        if !contains_focus
+            && (ctx.consume_shortcut(vk::F10) || ctx.consume_shortcut(vk::F1) || steal_focus_now)
+        {
             ctx.steal_focus();
         }
         if state.documents.active().is_some() {
-            if ctx.menubar_menu_begin(loc(LocId::Edit), 'E') {
+            if ctx.menubar_menu_begin_selected(
+                loc(LocId::Edit),
+                'E',
+                menu_shortcut_selected(ctx, menubar_was_visible, vk::E),
+            ) {
                 draw_menu_edit(ctx, state);
             }
-            if ctx.menubar_menu_begin(loc(LocId::View), 'V') {
+            if ctx.menubar_menu_begin_selected(
+                loc(LocId::View),
+                'V',
+                menu_shortcut_selected(ctx, menubar_was_visible, vk::V),
+            ) {
                 draw_menu_view(ctx, state);
             }
         }
-        if ctx.menubar_menu_begin(loc(LocId::Help), 'H') {
+        if ctx.menubar_menu_begin_selected(
+            loc(LocId::Help),
+            'H',
+            menu_shortcut_selected(ctx, menubar_was_visible, vk::H),
+        ) {
             draw_menu_help(ctx, state);
         }
     }
     ctx.menubar_end();
     state.menubar_visible = ctx.contains_focus();
+}
+
+fn menu_shortcut_selected(
+    ctx: &Context,
+    menubar_visible: bool,
+    key: edit::input::InputKey,
+) -> bool {
+    ctx.matches_shortcut(kbmod::ALT | key) || (menubar_visible && ctx.matches_shortcut(key))
 }
 
 fn draw_menu_file(ctx: &mut Context, state: &mut State) {
@@ -134,7 +165,10 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
             execute_command_invocation(
                 ctx,
                 state,
-                CommandInvocation { command: Command::SetWordWrapColumn, argument: Some("60".into()) },
+                CommandInvocation {
+                    command: Command::SetWordWrapColumn,
+                    argument: Some("60".into()),
+                },
             );
         }
         if ctx.menubar_menu_checkbox(loc(LocId::ViewWordWrap80), '8', vk::NULL, word_wrap_max == 80)
@@ -142,7 +176,10 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
             execute_command_invocation(
                 ctx,
                 state,
-                CommandInvocation { command: Command::SetWordWrapColumn, argument: Some("80".into()) },
+                CommandInvocation {
+                    command: Command::SetWordWrapColumn,
+                    argument: Some("80".into()),
+                },
             );
         }
     }
