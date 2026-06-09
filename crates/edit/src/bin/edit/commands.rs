@@ -149,7 +149,7 @@ pub fn execute_command_invocation(
             if let Some(text) = argument
                 && let Some(doc) = state.documents.active()
             {
-                doc.buffer.borrow_mut().write_canon(text.as_bytes());
+                doc.buffer.borrow_mut().write_canon_smart(text.as_bytes());
             }
         }
         Command::FocusStatusbar => state.wants_statusbar_focus = true,

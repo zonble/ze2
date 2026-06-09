@@ -477,6 +477,11 @@ impl TextBuffer {
         self.cursor.logical_pos
     }
 
+    /// Gets the cursor offset in bytes.
+    pub fn cursor_offset(&self) -> usize {
+        self.cursor.offset
+    }
+
     /// Gets the visual cursor position, that is,
     /// the position in laid out rows and columns.
     pub fn cursor_visual_pos(&self) -> Point {
@@ -2314,6 +2319,85 @@ impl TextBuffer {
         self.write(text, self.cursor, false);
     }
 
+    /// Inserts the user input `text` at the current cursor position, applying
+    /// smart punctuation conversion (e.g. Alt shortcut repeats).
+    pub fn write_canon_smart(&mut self, text: &[u8]) {
+        if self.has_selection() {
+            self.write_canon(text);
+            return;
+        }
+
+        let offset = self.cursor.offset;
+        let prev_bytes = self.read_backward(offset);
+        let mut handled = false;
+
+        if text == "，".as_bytes() {
+            if prev_bytes.ends_with("，".as_bytes()) {
+                self.edit_begin_grouping();
+                self.delete(CursorMovement::Grapheme, -1);
+                self.write_canon("〈".as_bytes());
+                self.edit_end_grouping();
+                handled = true;
+            } else if prev_bytes.ends_with("〈".as_bytes()) {
+                handled = true; // do nothing
+            }
+        } else if text == "。".as_bytes() {
+            if prev_bytes.ends_with("。".as_bytes()) || prev_bytes.ends_with(".".as_bytes()) {
+                self.edit_begin_grouping();
+                self.delete(CursorMovement::Grapheme, -1);
+                self.write_canon("〉".as_bytes());
+                self.edit_end_grouping();
+                handled = true;
+            } else if prev_bytes.ends_with("〉".as_bytes()) {
+                handled = true; // do nothing
+            }
+        } else if text == "「".as_bytes() {
+            if prev_bytes.ends_with("「".as_bytes()) {
+                self.edit_begin_grouping();
+                self.delete(CursorMovement::Grapheme, -1);
+                self.write_canon("【".as_bytes());
+                self.edit_end_grouping();
+                handled = true;
+            } else if prev_bytes.ends_with("【".as_bytes()) {
+                handled = true; // do nothing
+            }
+        } else if text == "」".as_bytes() {
+            if prev_bytes.ends_with("」".as_bytes()) {
+                self.edit_begin_grouping();
+                self.delete(CursorMovement::Grapheme, -1);
+                self.write_canon("】".as_bytes());
+                self.edit_end_grouping();
+                handled = true;
+            } else if prev_bytes.ends_with("】".as_bytes()) {
+                handled = true; // do nothing
+            }
+        } else if text == "『".as_bytes() {
+            if prev_bytes.ends_with("『".as_bytes()) {
+                self.edit_begin_grouping();
+                self.delete(CursorMovement::Grapheme, -1);
+                self.write_canon("〖".as_bytes());
+                self.edit_end_grouping();
+                handled = true;
+            } else if prev_bytes.ends_with("〖".as_bytes()) {
+                handled = true; // do nothing
+            }
+        } else if text == "』".as_bytes() {
+            if prev_bytes.ends_with("』".as_bytes()) {
+                self.edit_begin_grouping();
+                self.delete(CursorMovement::Grapheme, -1);
+                self.write_canon("〗".as_bytes());
+                self.edit_end_grouping();
+                handled = true;
+            } else if prev_bytes.ends_with("〗".as_bytes()) {
+                handled = true; // do nothing
+            }
+        }
+
+        if !handled {
+            self.write_canon(text);
+        }
+    }
+
     /// Inserts `text` as-is at the current cursor position.
     /// The only transformation applied is that newlines are normalized.
     pub fn write_raw(&mut self, text: &[u8]) {
@@ -2798,7 +2882,7 @@ impl TextBuffer {
         if beg.offset < end.offset { Some((beg, end)) } else { None }
     }
 
-    fn edit_begin_grouping(&mut self) {
+    pub fn edit_begin_grouping(&mut self) {
         self.active_edit_group = Some(ActiveEditGroupInfo {
             cursor_before: self.cursor.logical_pos,
             selection_before: self.selection,
@@ -2807,7 +2891,7 @@ impl TextBuffer {
         });
     }
 
-    fn edit_end_grouping(&mut self) {
+    pub fn edit_end_grouping(&mut self) {
         self.active_edit_group = None;
     }
 
@@ -3111,7 +3195,7 @@ impl TextBuffer {
     }
 
     /// For interfacing with ICU.
-    pub(crate) fn read_backward(&self, off: usize) -> &[u8] {
+    pub fn read_backward(&self, off: usize) -> &[u8] {
         self.buffer.read_backward(off)
     }
 
@@ -3204,5 +3288,97 @@ mod tests {
         .unwrap();
 
         assert_eq!(buffer_contents(&mut buf), "ax\nbx\nx\n");
+    }
+
+    #[test]
+    fn test_smart_punctuation_conversion() {
+        // Alt + ,
+        {
+            let mut buf = TextBuffer::new(false).unwrap();
+            buf.set_crlf(false);
+            buf.set_insert_final_newline(false);
+            buf.write_canon_smart("，".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "，");
+            buf.write_canon_smart("，".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "〈");
+            buf.write_canon_smart("，".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "〈");
+        }
+
+        // Alt + . with 。
+        {
+            let mut buf = TextBuffer::new(false).unwrap();
+            buf.set_crlf(false);
+            buf.set_insert_final_newline(false);
+            buf.write_canon_smart("。".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "。");
+            buf.write_canon_smart("。".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "〉");
+            buf.write_canon_smart("。".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "〉");
+        }
+
+        // Alt + . with .
+        {
+            let mut buf = TextBuffer::new(false).unwrap();
+            buf.set_crlf(false);
+            buf.set_insert_final_newline(false);
+            buf.write_canon(b".");
+            assert_eq!(buffer_contents(&mut buf), ".");
+            buf.write_canon_smart("。".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "〉");
+        }
+
+        // Alt + [
+        {
+            let mut buf = TextBuffer::new(false).unwrap();
+            buf.set_crlf(false);
+            buf.set_insert_final_newline(false);
+            buf.write_canon_smart("「".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "「");
+            buf.write_canon_smart("「".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "【");
+            buf.write_canon_smart("「".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "【");
+        }
+
+        // Alt + ]
+        {
+            let mut buf = TextBuffer::new(false).unwrap();
+            buf.set_crlf(false);
+            buf.set_insert_final_newline(false);
+            buf.write_canon_smart("」".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "」");
+            buf.write_canon_smart("」".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "】");
+            buf.write_canon_smart("」".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "】");
+        }
+
+        // Alt + Shift + [
+        {
+            let mut buf = TextBuffer::new(false).unwrap();
+            buf.set_crlf(false);
+            buf.set_insert_final_newline(false);
+            buf.write_canon_smart("『".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "『");
+            buf.write_canon_smart("『".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "〖");
+            buf.write_canon_smart("『".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "〖");
+        }
+
+        // Alt + Shift + ]
+        {
+            let mut buf = TextBuffer::new(false).unwrap();
+            buf.set_crlf(false);
+            buf.set_insert_final_newline(false);
+            buf.write_canon_smart("』".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "』");
+            buf.write_canon_smart("』".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "〗");
+            buf.write_canon_smart("』".as_bytes());
+            assert_eq!(buffer_contents(&mut buf), "〗");
+        }
     }
 }
