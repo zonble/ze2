@@ -133,6 +133,7 @@ pub struct OscTitleFileStatus {
 pub struct State {
     pub menubar_color_bg: StraightRgba,
     pub menubar_color_fg: StraightRgba,
+    pub menubar_visible: bool,
 
     pub documents: DocumentManager,
 
@@ -190,6 +191,7 @@ impl State {
         Ok(Self {
             menubar_color_bg: StraightRgba::zero(),
             menubar_color_fg: StraightRgba::zero(),
+            menubar_visible: false,
 
             documents: Default::default(),
 

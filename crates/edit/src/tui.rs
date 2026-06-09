@@ -3174,7 +3174,15 @@ impl<'a> Context<'a, '_> {
     /// Creates a menubar, to be shown at the top of the screen.
     pub fn menubar_begin(&mut self) {
         self.table_begin("menubar");
+        self.attr_float(FloatSpec {
+            anchor: Anchor::Root,
+            gravity_x: 0.0,
+            gravity_y: 0.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
+        });
         self.attr_focus_well();
+        self.attr_intrinsic_size(Size { width: COORD_TYPE_SAFE_MAX, height: 1 });
         self.table_next_row();
     }
 
@@ -3218,6 +3226,8 @@ impl<'a> Context<'a, '_> {
                 offset_x: 0.0,
                 offset_y: 1.0,
             });
+            self.attr_background_rgba(self.indexed(IndexedColor::Cyan));
+            self.attr_foreground_rgba(self.indexed(IndexedColor::BrightWhite));
             self.attr_border();
             self.attr_focus_well();
 
@@ -3259,8 +3269,8 @@ impl<'a> Context<'a, '_> {
         }
 
         if self.is_focused() {
-            self.attr_background_rgba(self.indexed(IndexedColor::Green));
-            self.attr_foreground_rgba(self.contrasted(self.indexed(IndexedColor::Green)));
+            self.attr_background_rgba(self.indexed(IndexedColor::Red));
+            self.attr_foreground_rgba(self.contrasted(self.indexed(IndexedColor::Red)));
         }
 
         let clicked =

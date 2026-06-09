@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use edit::framebuffer::IndexedColor;
 use edit::helpers::*;
 use edit::input::{kbmod, vk};
 use edit::tui::*;
@@ -12,11 +13,17 @@ use crate::settings::Settings;
 use crate::state::*;
 
 pub fn draw_menubar(ctx: &mut Context, state: &mut State) {
+    let focus_shortcut = ctx.keyboard_input().is_some_and(|key| key == vk::F10 || key == vk::F1);
+    if !state.menubar_visible && !focus_shortcut {
+        return;
+    }
+
     ctx.menubar_begin();
-    ctx.attr_background_rgba(state.menubar_color_bg);
-    ctx.attr_foreground_rgba(state.menubar_color_fg);
+    ctx.attr_background_rgba(ctx.indexed(IndexedColor::White));
+    ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::Black));
     {
         let contains_focus = ctx.contains_focus();
+        state.menubar_visible = contains_focus || focus_shortcut;
 
         if ctx.menubar_menu_begin(loc(LocId::File), 'F') {
             draw_menu_file(ctx, state);
@@ -37,6 +44,7 @@ pub fn draw_menubar(ctx: &mut Context, state: &mut State) {
         }
     }
     ctx.menubar_end();
+    state.menubar_visible = ctx.contains_focus();
 }
 
 fn draw_menu_file(ctx: &mut Context, state: &mut State) {
