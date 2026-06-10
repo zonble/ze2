@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use edit::icu;
 use edit::input::{InputKey, InputKeyMod, kbmod, vk};
 use edit::path;
 use edit::tui::Context;
 use std::env;
 use std::path::{Path, PathBuf};
 
+use crate::draw_editor::{SearchAction, search_execute, validate_goto_point};
 use crate::localization::*;
 use crate::settings::Settings;
 use crate::state::*;
@@ -172,13 +174,36 @@ pub fn execute_command_invocation(
         Command::Find => {
             if state.wants_search.kind != StateSearchKind::Disabled {
                 state.wants_search.kind = StateSearchKind::Search;
-                state.wants_search.focus = true;
+                if let Some(argument) = command_string_argument(&argument) {
+                    state.search_needle = argument;
+                    state.wants_search.focus = false;
+                    if let Err(err) = icu::init() {
+                        error_log_add(ctx, state, err.into());
+                        state.wants_search.kind = StateSearchKind::Disabled;
+                    } else {
+                        search_execute(ctx, state, SearchAction::Search);
+                    }
+                } else {
+                    state.wants_search.focus = true;
+                }
             }
         }
         Command::Replace => {
             if state.wants_search.kind != StateSearchKind::Disabled {
                 state.wants_search.kind = StateSearchKind::Replace;
-                state.wants_search.focus = true;
+                if let Some((needle, replacement)) = command_replace_arguments(&argument) {
+                    state.search_needle = needle;
+                    state.search_replacement = replacement;
+                    state.wants_search.focus = false;
+                    if let Err(err) = icu::init() {
+                        error_log_add(ctx, state, err.into());
+                        state.wants_search.kind = StateSearchKind::Disabled;
+                    } else {
+                        search_execute(ctx, state, SearchAction::Replace);
+                    }
+                } else {
+                    state.wants_search.focus = true;
+                }
             }
         }
         Command::SelectAll => {
@@ -199,13 +224,52 @@ pub fn execute_command_invocation(
             }
         }
         Command::FocusStatusbar => state.wants_statusbar_focus = true,
-        Command::GoToFile => state.wants_go_to_file = true,
-        Command::Goto => state.wants_goto = true,
+        Command::GoToFile => {
+            if let Some(file) = command_string_argument(&argument) {
+                let path = command_path_argument(&Some(file.clone())).unwrap();
+
+                if !state.documents.update_active(|doc| {
+                    doc.filename == file
+                        || doc.path.as_ref().is_some_and(|doc_path| {
+                            doc_path == &path
+                                || doc_path.to_string_lossy() == file
+                                || doc_path.to_string_lossy().ends_with(&file)
+                        })
+                }) {
+                    match state.documents.add_file_path(&path) {
+                        Ok(_) => {}
+                        Err(err) => error_log_add(ctx, state, err),
+                    }
+                }
+            } else {
+                state.wants_go_to_file = true;
+            }
+        }
+        Command::Goto => {
+            if let Some(line) = command_string_argument(&argument) {
+                match validate_goto_point(&line) {
+                    Ok(point) => {
+                        if let Some(doc) = state.documents.active() {
+                            let mut buf = doc.buffer.borrow_mut();
+                            buf.cursor_move_to_logical(point);
+                            buf.make_cursor_visible();
+                        }
+                    }
+                    Err(_) => {
+                        state.goto_target = line;
+                        state.goto_invalid = true;
+                        state.wants_goto = true;
+                    }
+                }
+            } else {
+                state.wants_goto = true;
+            }
+        }
         Command::WordWrap => {
             if let Some(doc) = state.documents.active() {
                 let mut tb = doc.buffer.borrow_mut();
-                let word_wrap = tb.is_word_wrap_enabled();
-                let word_wrap = !word_wrap;
+                let word_wrap =
+                    command_bool_argument(&argument).unwrap_or_else(|| !tb.is_word_wrap_enabled());
                 tb.set_word_wrap(word_wrap);
                 drop(tb);
                 if let Err(err) = Settings::set_word_wrap(word_wrap) {
@@ -222,7 +286,7 @@ pub fn execute_command_invocation(
                 .max(0);
             // Enforce a minimum of 20 columns (0 means "no limit / full window width").
             let col = if col > 0 { col.max(20) } else { 0 };
-            
+
             let mut err_to_log = None;
             if let Some(doc) = state.documents.active() {
                 let mut tb = doc.buffer.borrow_mut();
@@ -264,6 +328,29 @@ fn command_path_argument(argument: &Option<String>) -> Option<PathBuf> {
         env::current_dir().unwrap_or_default().join(path)
     };
     Some(path::normalize(&path))
+}
+
+fn command_string_argument(argument: &Option<String>) -> Option<String> {
+    let argument = argument.as_deref()?.trim();
+    (!argument.is_empty()).then(|| argument.to_string())
+}
+
+fn command_replace_arguments(argument: &Option<String>) -> Option<(String, String)> {
+    let argument = argument.as_deref()?.trim();
+    let (needle, replacement) = argument.split_once(char::is_whitespace)?;
+    let needle = needle.trim();
+    if needle.is_empty() {
+        return None;
+    }
+    Some((needle.to_string(), replacement.trim().to_string()))
+}
+
+fn command_bool_argument(argument: &Option<String>) -> Option<bool> {
+    match argument.as_deref()?.trim().to_ascii_lowercase().as_str() {
+        "true" | "on" | "yes" | "1" => Some(true),
+        "false" | "off" | "no" | "0" => Some(false),
+        _ => None,
+    }
 }
 
 pub fn command_invocation_from_shortcut(key: InputKey) -> Option<CommandInvocation> {
@@ -449,6 +536,46 @@ mod tests {
     }
 
     #[test]
+    fn command_text_accepts_parameterized_commands() {
+        for (text, expected_command, expected_argument) in [
+            ("find needle", Command::Find, "needle"),
+            ("replace old new value", Command::Replace, "old new value"),
+            ("go-to-file src/main.rs", Command::GoToFile, "src/main.rs"),
+            ("go-to-line 42", Command::Goto, "42"),
+            ("word-wrap false", Command::WordWrap, "false"),
+        ] {
+            let Some(CommandInvocation { command, argument: Some(argument) }) =
+                command_from_text(text)
+            else {
+                panic!("command did not parse: {text}");
+            };
+
+            assert!(command == expected_command);
+            assert!(argument == expected_argument);
+        }
+    }
+
+    #[test]
+    fn replace_arguments_split_once() {
+        assert!(
+            command_replace_arguments(&Some("old new value".to_string()))
+                == Some(("old".to_string(), "new value".to_string()))
+        );
+        assert!(command_replace_arguments(&Some("old".to_string())).is_none());
+    }
+
+    #[test]
+    fn bool_arguments_accept_common_values() {
+        for value in ["true", "on", "yes", "1"] {
+            assert!(command_bool_argument(&Some(value.to_string())) == Some(true));
+        }
+        for value in ["false", "off", "no", "0"] {
+            assert!(command_bool_argument(&Some(value.to_string())) == Some(false));
+        }
+        assert!(command_bool_argument(&Some("toggle".to_string())).is_none());
+    }
+
+    #[test]
     fn insert_shortcuts_map_to_text_invocations() {
         for (key, expected) in [
             (kbmod::ALT | vk::COMMA, "，"),
@@ -490,7 +617,7 @@ struct InsertShortcut {
 const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::NewFile,
-        names: &["new",  "file-new"],
+        names: &["new", "file-new"],
         loc_id: Some(LocId::FileNew),
     },
     CommandDefinition {
@@ -550,11 +677,7 @@ const COMMANDS: &[CommandDefinition] = &[
         names: &["select-line", "line"],
         loc_id: None,
     },
-    CommandDefinition {
-        command: Command::InsertText,
-        names: &["insert"],
-        loc_id: None,
-    },
+    CommandDefinition { command: Command::InsertText, names: &["insert"], loc_id: None },
     CommandDefinition {
         command: Command::FocusStatusbar,
         names: &["statusbar", "focus-statusbar"],

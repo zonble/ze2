@@ -41,23 +41,36 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
         ctx.attr_intrinsic_size(Size { width: COORD_TYPE_SAFE_MAX, height: 1 });
         ctx.inherit_focus();
 
-        if ctx.contains_focus()
-            && !state.command_bar_input.is_empty()
-            && !state.command_bar_input.contains(char::is_whitespace)
-        {
-            let suggestions = autocomplete_commands(&state.command_bar_input);
-            if !suggestions.is_empty() {
+        if ctx.contains_focus() {
+            let suggestions = if !state.command_bar_input.is_empty()
+                && !state.command_bar_input.contains(char::is_whitespace)
+            {
+                autocomplete_commands(&state.command_bar_input)
+            } else {
+                Vec::new()
+            };
+
+            if suggestions.is_empty() {
+                state.command_bar_autocomplete_index = None;
+                if ctx.is_focused() && ctx.consume_shortcut(vk::UP) {
+                    state.command_bar_active = false;
+                    state.command_bar_error.clear();
+                    state.wants_editor_focus = true;
+                    ctx.needs_rerender();
+                }
+            } else {
                 let bg = ctx.indexed_alpha(IndexedColor::Background, 3, 4);
                 let fg = ctx.contrasted(bg);
-                
+
                 let mut apply_autocomplete = false;
                 let mut execute_autocomplete = false;
-                
+
                 // Handle keyboard navigation manually before the list takes it
                 if ctx.is_focused() {
                     if ctx.consume_shortcut(vk::DOWN) {
                         let idx = state.command_bar_autocomplete_index.unwrap_or(0);
-                        state.command_bar_autocomplete_index = Some((idx + 1).min(suggestions.len() - 1));
+                        state.command_bar_autocomplete_index =
+                            Some((idx + 1).min(suggestions.len() - 1));
                     } else if ctx.consume_shortcut(vk::UP) {
                         let idx = state.command_bar_autocomplete_index.unwrap_or(0);
                         state.command_bar_autocomplete_index = Some(idx.saturating_sub(1));
@@ -99,11 +112,15 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
                 {
                     for (idx, suggestion) in suggestions.iter().enumerate() {
                         let is_selected = state.command_bar_autocomplete_index == Some(idx);
-                        
+
                         ctx.next_block_id_mixin(idx as u64);
                         ctx.styled_label_begin("suggestion");
                         if is_selected {
-                            ctx.attr_background_rgba(ctx.indexed_alpha(IndexedColor::Foreground, 1, 4));
+                            ctx.attr_background_rgba(ctx.indexed_alpha(
+                                IndexedColor::Foreground,
+                                1,
+                                4,
+                            ));
                         }
                         ctx.styled_label_add_text("  ");
                         ctx.styled_label_add_text(suggestion);
@@ -113,11 +130,12 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
                 ctx.block_end();
 
                 // If user typed anything else, reset the autocomplete selection
-                if ctx.keyboard_input().is_some() && ctx.keyboard_input() != Some(vk::RETURN) && ctx.keyboard_input() != Some(vk::TAB) {
+                if ctx.keyboard_input().is_some()
+                    && ctx.keyboard_input() != Some(vk::RETURN)
+                    && ctx.keyboard_input() != Some(vk::TAB)
+                {
                     state.command_bar_autocomplete_index = None;
                 }
-            } else {
-                state.command_bar_autocomplete_index = None;
             }
         } else {
             state.command_bar_autocomplete_index = None;

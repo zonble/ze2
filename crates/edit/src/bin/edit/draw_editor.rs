@@ -377,7 +377,7 @@ pub fn draw_goto_menu(ctx: &mut Context, state: &mut State) {
     }
 }
 
-fn validate_goto_point(line: &str) -> Result<Point, ParseIntError> {
+pub fn validate_goto_point(line: &str) -> Result<Point, ParseIntError> {
     let mut coords = [0; 2];
     let (y, x) = line.split_once(':').unwrap_or((line, "0"));
     // Using a loop here avoids 2 copies of the str->int code.
