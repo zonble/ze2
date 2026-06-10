@@ -24,7 +24,7 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
         StateSearchKind::Search => 4,
         StateSearchKind::Replace => 5,
         _ => 2,
-    } + 1;
+    } + 2; // +1 for the status bar, +1 for the command bar
 
     if let Some(doc) = state.documents.active() {
         let word_wrap_column = doc.buffer.borrow().word_wrap_max_column();

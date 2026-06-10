@@ -1898,27 +1898,47 @@ impl TextBuffer {
             if self.word_wrap_column > 0 && visual_line < self.stats.visual_lines {
                 let start_of_logical_line =
                     self.goto_line_start(cursor_beg, cursor_beg.logical_pos.y);
-                sub_line_number =
-                    cursor_beg.visual_pos.y - start_of_logical_line.visual_pos.y + 1;
-                    
+                
                 // Check if the current logical line spans multiple visual lines.
                 let next_logical_line_start = 
                     self.goto_line_start(cursor_beg, cursor_beg.logical_pos.y + 1);
                 
-                // If it's the last line, next_logical_line_start might be at the end of the file.
-                // We compare the visual y-coordinates.
-                let spans_multiple_lines = 
+                // If the start of the next logical line is visually more than 1 line away
+                // from the start of the current logical line, then the current line wrapped.
+                // Alternatively, if this is the very last logical line in the file, we must
+                // check if the total visual lines is greater than the visual start of this line + 1.
+                let spans_multiple_lines = if next_logical_line_start.logical_pos.y > cursor_beg.logical_pos.y {
                     next_logical_line_start.visual_pos.y > start_of_logical_line.visual_pos.y + 1
-                    || (next_logical_line_start.offset == self.text_length() && self.stats.visual_lines > start_of_logical_line.visual_pos.y + 1);
+                } else {
+                    // This is the last logical line.
+                    self.stats.visual_lines > start_of_logical_line.visual_pos.y + 1
+                };
 
                 is_wrapped_line = spans_multiple_lines;
+                
+                if is_wrapped_line {
+                    sub_line_number = cursor_beg.visual_pos.y - start_of_logical_line.visual_pos.y + 1;
+                } else {
+                    sub_line_number = 0;
+                }
             } else {
                 sub_line_number = 0;
             }
 
+            let mut char_count_to_display = None;
             let right_margin_width = if self.word_wrap_column > 0 && sub_line_number > 0 && is_wrapped_line {
-                let number_width = sub_line_number.ilog10() as CoordType + 1;
-                number_width + 1 // space + number
+                let mut width = sub_line_number.ilog10() as CoordType + 1;
+                width += 1; // space + number
+                
+                if sub_line_number == 1 {
+                    let start_of_logical_line = self.goto_line_start(cursor_beg, cursor_beg.logical_pos.y);
+                    let end_of_logical_line = self.cursor_move_to_logical_internal(start_of_logical_line, Point { x: COORD_TYPE_SAFE_MAX, y: start_of_logical_line.logical_pos.y });
+                    let char_count = end_of_logical_line.logical_pos.x;
+                    char_count_to_display = Some(char_count);
+                    width += 3 + char_count.max(1).ilog10() as CoordType + 1; // " │ " + char_count
+                }
+                
+                width
             } else {
                 0
             };
@@ -2157,7 +2177,11 @@ impl TextBuffer {
                 if pad > 0 {
                     arena_write_fmt!(&*scratch, line, "{:1$}", "", pad as usize);
                 }
-                arena_write_fmt!(&*scratch, line, " {}", sub_line_number);
+                if let Some(char_count) = char_count_to_display {
+                    arena_write_fmt!(&*scratch, line, " {} │ {}", sub_line_number, char_count);
+                } else {
+                    arena_write_fmt!(&*scratch, line, " {}", sub_line_number);
+                }
 
                 // Colorize the right margin.
                 let left = destination.left + self.margin_width + self.word_wrap_column;

@@ -2938,12 +2938,20 @@ impl<'a> Context<'a, '_> {
         scroll_x = scroll_x.min(cursor_x - 10);
         scroll_x = scroll_x.max(cursor_x - text_width + 10);
 
-        let viewport_height = node_prev.inner.height();
+        let mut viewport_height = node_prev.inner.height();
+        if tc.show_ruler {
+            viewport_height = viewport_height.saturating_sub(1);
+        }
         let cursor_y = tb.cursor_visual_pos().y;
+        
+        // If we're in a multi-line editor and on the last line, we want to pad the scroll
+        // by 1 so that the EOF marker (which is rendered below the last line) becomes visible.
+        let eof_padding = if tb.visual_line_count() > 1 && cursor_y == tb.visual_line_count() - 1 { 1 } else { 0 };
+
         // Scroll up if the cursor is above the visible area.
         scroll_y = scroll_y.min(cursor_y);
         // Scroll down if the cursor is below the visible area.
-        scroll_y = scroll_y.max(cursor_y - viewport_height + 1);
+        scroll_y = scroll_y.max(cursor_y - viewport_height + 1 + eof_padding);
 
         tc.scroll_offset.x = scroll_x;
         tc.scroll_offset.y = scroll_y;
@@ -2956,7 +2964,10 @@ impl<'a> Context<'a, '_> {
 
         scroll_x = scroll_x.min(tc.scroll_offset_x_max.max(tb.cursor_visual_pos().x) - 10);
         scroll_x = scroll_x.max(0);
-        scroll_y = scroll_y.clamp(0, tb.visual_line_count() - 1);
+        
+        // Clamp up to `tb.visual_line_count()` instead of `tb.visual_line_count() - 1`
+        // so we can scroll far enough to reveal the EOF marker below the last line.
+        scroll_y = scroll_y.clamp(0, tb.visual_line_count());
 
         if tb.is_word_wrap_enabled() {
             scroll_x = 0;
