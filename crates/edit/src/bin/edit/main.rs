@@ -115,6 +115,7 @@ fn run() -> apperr::Result<()> {
         alt: loc(LocId::Alt),
         shift: loc(LocId::Shift),
     });
+    tui.set_eof_marker(loc(LocId::EndOfFileMarker));
     tui.set_floater_default_bg(floater_bg);
     tui.set_floater_default_fg(floater_fg);
     tui.set_modal_default_bg(floater_bg);

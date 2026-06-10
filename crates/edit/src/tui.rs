@@ -317,6 +317,7 @@ pub struct Tui {
     framebuffer: Framebuffer,
 
     modifier_translations: ModifierTranslations,
+    eof_marker: String,
     floater_default_bg: StraightRgba,
     floater_default_fg: StraightRgba,
     modal_default_bg: StraightRgba,
@@ -395,6 +396,7 @@ impl Tui {
                 alt: "Alt",
                 shift: "Shift",
             },
+            eof_marker: "=== END OF FILE ===".to_string(),
             floater_default_bg: StraightRgba::zero(),
             floater_default_fg: StraightRgba::zero(),
             modal_default_bg: StraightRgba::zero(),
@@ -441,8 +443,12 @@ impl Tui {
     }
 
     /// Set the default background color for floaters (dropdowns, etc.).
-    pub fn set_floater_default_bg(&mut self, color: StraightRgba) {
-        self.floater_default_bg = color;
+    pub fn set_floater_default_bg(&mut self, bg: StraightRgba) {
+        self.floater_default_bg = bg;
+    }
+
+    pub fn set_eof_marker(&mut self, text: &str) {
+        self.eof_marker = text.to_string();
     }
 
     /// Set the default foreground color for floaters (dropdowns, etc.).
@@ -1131,18 +1137,18 @@ impl Tui {
         scroll_offset: Point,
         destination: Rect,
     ) {
-        const EOF_MARKER: &str = "=== END OF FILE ===";
-
         let y = tb.visual_line_count() - scroll_offset.y;
         if y < 0 || y >= destination.height() {
             return;
         }
 
+        let eof_marker = self.eof_marker.clone();
+
         self.framebuffer.replace_text(
             destination.top + y,
             destination.left + tb.margin_width() - scroll_offset.x,
             destination.right,
-            EOF_MARKER,
+            &eof_marker,
         );
     }
 
