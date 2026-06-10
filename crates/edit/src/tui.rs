@@ -1634,8 +1634,12 @@ impl<'a> Context<'a, '_> {
                 break;
             }
 
-            focused_start = focused_start.borrow().parent.unwrap();
-            if focused_start.borrow().attributes.focus_void {
+            if let Some(parent) = focused_start.borrow().parent {
+                focused_start = parent;
+                if focused_start.borrow().attributes.focus_void {
+                    break;
+                }
+            } else {
                 break;
             }
         }

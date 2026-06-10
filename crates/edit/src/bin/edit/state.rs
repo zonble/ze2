@@ -186,6 +186,7 @@ pub struct State {
     pub command_bar_focus: bool,
     pub command_bar_input: String,
     pub command_bar_error: String,
+    pub command_bar_autocomplete_index: Option<usize>,
 
     pub osc_title_file_status: OscTitleFileStatus,
     pub osc_clipboard_sync: bool,
@@ -251,6 +252,7 @@ impl State {
             command_bar_focus: false,
             command_bar_input: Default::default(),
             command_bar_error: Default::default(),
+            command_bar_autocomplete_index: None,
 
             osc_title_file_status: Default::default(),
             osc_clipboard_sync: false,

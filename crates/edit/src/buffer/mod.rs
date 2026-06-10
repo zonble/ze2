@@ -3076,8 +3076,13 @@ impl TextBuffer {
             let deleted_count = self.undo_stack.back_mut().unwrap().borrow_mut().deleted.len();
             let target = self.cursor.logical_pos;
 
-            // From our safe position we can measure the actual visual position of the cursor.
-            self.set_cursor_internal(self.cursor_move_to_logical_internal(info.safe_start, target));
+            let added_newlines;
+            {
+                let undo = self.undo_stack.back().unwrap().borrow();
+                added_newlines = undo.added.iter().filter(|&&b| b == b'\n').count();
+            }
+
+            let new_cursor = self.cursor_move_to_logical_internal(info.safe_start, target);
 
             // If content is added at the insertion position, that's not a problem:
             // We can just remeasure the height of this one line and calculate the delta.
@@ -3086,17 +3091,24 @@ impl TextBuffer {
             // The problem is when content is deleted, because it may affect lines
             // beyond the end of the `next_line`. In that case we have to measure
             // the entire buffer contents until the end to compute `self.stats.visual_lines`.
-            if deleted_count < info.distance_next_line_start {
+            // ALSO if newlines were added, the logical line structure changed, so we cannot safely
+            // rely on the old `info.distance_next_line_start` or `info.line_height_in_rows`.
+            if deleted_count < info.distance_next_line_start && added_newlines == 0 && target.y < self.stats.logical_lines {
                 // Now we can measure how many more visual rows this logical line spans.
                 let next_line = self
-                    .cursor_move_to_logical_internal(self.cursor, Point { x: 0, y: target.y + 1 });
+                    .cursor_move_to_logical_internal(new_cursor, Point { x: 0, y: target.y + 1 });
                 let lines_before = info.line_height_in_rows;
                 let lines_after = next_line.visual_pos.y - info.safe_start.visual_pos.y;
                 self.stats.visual_lines += lines_after - lines_before;
             } else {
-                let end = self.cursor_move_to_logical_internal(self.cursor, Point::MAX);
+                // Temporarily bump visual_lines to max so internal asserts in cursor_move don't panic if they check it.
+                // Wait, cursor_move_to_logical_internal doesn't assert visual_lines, only set_cursor_internal does.
+                let end = self.cursor_move_to_logical_internal(new_cursor, Point::MAX);
                 self.stats.visual_lines = end.visual_pos.y + 1;
             }
+
+            // From our safe position we can measure the actual visual position of the cursor.
+            self.set_cursor_internal(new_cursor);
         } else {
             // If word-wrap is disabled the visual line count always matches the logical one.
             self.stats.visual_lines = self.stats.logical_lines;

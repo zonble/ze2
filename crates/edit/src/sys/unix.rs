@@ -217,6 +217,9 @@ pub fn read_stdin(arena: &Arena, mut timeout: time::Duration) -> Option<BString<
                     ret = libc::poll(&mut pollfd, 1, timeout.as_millis() as libc::c_int);
                 }
                 if ret < 0 {
+                    if errno() == libc::EINTR || errno() == libc::EAGAIN {
+                        continue;
+                    }
                     return None; // Error? Let's assume it's an EOF.
                 }
                 if ret == 0 {

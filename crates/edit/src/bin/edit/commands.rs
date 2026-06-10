@@ -222,11 +222,24 @@ pub fn execute_command_invocation(
                 .max(0);
             // Enforce a minimum of 20 columns (0 means "no limit / full window width").
             let col = if col > 0 { col.max(20) } else { 0 };
+            
+            let mut err_to_log = None;
             if let Some(doc) = state.documents.active() {
-                doc.buffer.borrow_mut().set_word_wrap_max_column(col);
-                if let Err(err) = Settings::set_word_wrap_column(col) {
-                    error_log_add(ctx, state, err);
+                let mut tb = doc.buffer.borrow_mut();
+                tb.set_word_wrap_max_column(col);
+                if col > 0 && !tb.is_word_wrap_enabled() {
+                    tb.set_word_wrap(true);
+                    drop(tb);
+                    if let Err(err) = Settings::set_word_wrap(true) {
+                        err_to_log = Some(err);
+                    }
                 }
+            }
+            if let Err(err) = Settings::set_word_wrap_column(col) {
+                err_to_log = Some(err);
+            }
+            if let Some(err) = err_to_log {
+                error_log_add(ctx, state, err);
             }
         }
         Command::Menu => {
@@ -298,6 +311,29 @@ fn text_from_insert_shortcut(key: InputKey) -> Option<&'static str> {
         .iter()
         .find(|shortcut| shortcut.modifiers | shortcut.key == key)
         .map(|shortcut| shortcut.text)
+}
+
+pub fn autocomplete_commands(prefix: &str) -> Vec<String> {
+    let prefix = normalize_command_name(prefix);
+    if prefix.is_empty() {
+        return Vec::new();
+    }
+
+    let mut suggestions = Vec::new();
+
+    for definition in COMMANDS {
+        for name in definition.names {
+            let norm_name = normalize_command_name(name);
+            if norm_name.starts_with(&prefix) {
+                suggestions.push(name.to_string());
+            }
+        }
+    }
+
+    suggestions.sort();
+    suggestions.dedup();
+    suggestions.truncate(10);
+    suggestions
 }
 
 pub fn command_from_text(text: &str) -> Option<CommandInvocation> {
@@ -454,12 +490,12 @@ struct InsertShortcut {
 const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::NewFile,
-        names: &["new", "new-file", "file-new"],
+        names: &["new",  "file-new"],
         loc_id: Some(LocId::FileNew),
     },
     CommandDefinition {
         command: Command::OpenFile,
-        names: &["open", "open-file", "file-open", "e", "edit"],
+        names: &["open", "file-open", "e", "edit"],
         loc_id: Some(LocId::FileOpen),
     },
     CommandDefinition { command: Command::SaveAndCloseFile, names: &["file"], loc_id: None },
@@ -480,7 +516,7 @@ const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::CloseFile,
-        names: &["close", "close-file", "file-close"],
+        names: &["close", "file-close"],
         loc_id: Some(LocId::FileClose),
     },
     CommandDefinition { command: Command::Exit, names: &["exit"], loc_id: Some(LocId::FileExit) },
@@ -516,7 +552,7 @@ const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::InsertText,
-        names: &["insert", "type", "text"],
+        names: &["insert"],
         loc_id: None,
     },
     CommandDefinition {

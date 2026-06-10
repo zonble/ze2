@@ -6,7 +6,7 @@ use edit::helpers::*;
 use edit::input::vk;
 use edit::tui::*;
 
-use crate::commands::{command_from_text, execute_command_invocation};
+use crate::commands::{autocomplete_commands, command_from_text, execute_command_invocation};
 use crate::state::*;
 
 pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
@@ -39,6 +39,89 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
         ctx.attr_background_rgba(ctx.indexed(IndexedColor::Green));
         ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightWhite));
         ctx.attr_intrinsic_size(Size { width: COORD_TYPE_SAFE_MAX, height: 1 });
+        ctx.inherit_focus();
+
+        if ctx.contains_focus()
+            && !state.command_bar_input.is_empty()
+            && !state.command_bar_input.contains(char::is_whitespace)
+        {
+            let suggestions = autocomplete_commands(&state.command_bar_input);
+            if !suggestions.is_empty() {
+                let bg = ctx.indexed_alpha(IndexedColor::Background, 3, 4);
+                let fg = ctx.contrasted(bg);
+                
+                let mut apply_autocomplete = false;
+                let mut execute_autocomplete = false;
+                
+                // Handle keyboard navigation manually before the list takes it
+                if ctx.is_focused() {
+                    if ctx.consume_shortcut(vk::DOWN) {
+                        let idx = state.command_bar_autocomplete_index.unwrap_or(0);
+                        state.command_bar_autocomplete_index = Some((idx + 1).min(suggestions.len() - 1));
+                    } else if ctx.consume_shortcut(vk::UP) {
+                        let idx = state.command_bar_autocomplete_index.unwrap_or(0);
+                        state.command_bar_autocomplete_index = Some(idx.saturating_sub(1));
+                    } else if ctx.consume_shortcut(vk::TAB) {
+                        apply_autocomplete = true;
+                    } else if ctx.consume_shortcut(vk::RETURN) {
+                        apply_autocomplete = true;
+                        execute_autocomplete = true;
+                    }
+                }
+
+                if apply_autocomplete {
+                    if let Some(idx) = state.command_bar_autocomplete_index {
+                        if let Some(suggestion) = suggestions.get(idx) {
+                            state.command_bar_input = suggestion.clone();
+                            state.command_bar_autocomplete_index = None;
+                        }
+                    } else if let Some(suggestion) = suggestions.first() {
+                        state.command_bar_input = suggestion.clone();
+                        state.command_bar_autocomplete_index = None;
+                    }
+                }
+
+                if execute_autocomplete {
+                    execute = true;
+                }
+
+                ctx.block_begin("suggestions");
+                ctx.attr_float(FloatSpec {
+                    anchor: Anchor::Last,
+                    gravity_x: 0.0,
+                    gravity_y: 1.0,
+                    offset_x: 0.0,
+                    offset_y: 0.0,
+                });
+                ctx.attr_border();
+                ctx.attr_background_rgba(bg);
+                ctx.attr_foreground_rgba(fg);
+                {
+                    for (idx, suggestion) in suggestions.iter().enumerate() {
+                        let is_selected = state.command_bar_autocomplete_index == Some(idx);
+                        
+                        ctx.next_block_id_mixin(idx as u64);
+                        ctx.styled_label_begin("suggestion");
+                        if is_selected {
+                            ctx.attr_background_rgba(ctx.indexed_alpha(IndexedColor::Foreground, 1, 4));
+                        }
+                        ctx.styled_label_add_text("  ");
+                        ctx.styled_label_add_text(suggestion);
+                        ctx.styled_label_end();
+                    }
+                }
+                ctx.block_end();
+
+                // If user typed anything else, reset the autocomplete selection
+                if ctx.keyboard_input().is_some() && ctx.keyboard_input() != Some(vk::RETURN) && ctx.keyboard_input() != Some(vk::TAB) {
+                    state.command_bar_autocomplete_index = None;
+                }
+            } else {
+                state.command_bar_autocomplete_index = None;
+            }
+        } else {
+            state.command_bar_autocomplete_index = None;
+        }
 
         if state.command_bar_focus {
             state.command_bar_focus = false;
@@ -46,7 +129,7 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
             ctx.steal_focus();
         }
 
-        if ctx.is_focused() {
+        if ctx.contains_focus() {
             state.command_bar_active = true;
 
             if ctx.consume_shortcut(vk::RETURN) {
