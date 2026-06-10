@@ -2607,6 +2607,29 @@ impl TextBuffer {
         self.set_selection(None);
     }
 
+    /// Deletes from the cursor to the end of the logical line.
+    pub fn delete_to_end_of_line(&mut self, clipboard: &mut Clipboard) {
+        let beg = self.cursor;
+        let line = self.cursor.logical_pos.y;
+        let end = self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y: line });
+
+        if beg.offset == end.offset {
+            return;
+        }
+
+        let mut deleted_text = Vec::new();
+        self.buffer.extract_raw(beg.offset..end.offset, &mut deleted_text, 0);
+
+        clipboard.write(deleted_text);
+        clipboard.write_was_line_copy(false);
+
+        self.edit_begin(HistoryType::Delete, beg);
+        self.edit_delete(end);
+        self.edit_end();
+
+        self.set_selection(None);
+    }
+
     /// Deletes the logical line that contains the cursor.
     pub fn delete_line(&mut self) {
         let line = self.cursor.logical_pos.y;

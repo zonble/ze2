@@ -2520,6 +2520,9 @@ impl<'a> Context<'a, '_> {
                         tb.delete(CursorMovement::Grapheme, -1);
                     }
                 }
+                vk::K if modifiers == kbmod::CTRL => {
+                    tb.delete_to_end_of_line(&mut self.tui.clipboard);
+                }
                 vk::TAB => {
                     if single_line {
                         // If this is just a simple input field, don't consume Tab (= early return).
