@@ -1874,6 +1874,8 @@ impl TextBuffer {
             Some(TextBufferSelection { beg, end }) => minmax(beg, end),
         };
 
+        let mut sub_line_number;
+
         for y in 0..height {
             let scratch = scratch_arena(None);
             let mut line = BString::empty();
@@ -1891,6 +1893,39 @@ impl TextBuffer {
             if y == 0 {
                 self.cursor_for_rendering = Some(cursor_beg);
             }
+
+            let mut is_wrapped_line = false;
+            if self.word_wrap_column > 0 && visual_line < self.stats.visual_lines {
+                let start_of_logical_line =
+                    self.goto_line_start(cursor_beg, cursor_beg.logical_pos.y);
+                sub_line_number =
+                    cursor_beg.visual_pos.y - start_of_logical_line.visual_pos.y + 1;
+                    
+                // Check if the current logical line spans multiple visual lines.
+                let next_logical_line_start = 
+                    self.goto_line_start(cursor_beg, cursor_beg.logical_pos.y + 1);
+                
+                // If it's the last line, next_logical_line_start might be at the end of the file.
+                // We compare the visual y-coordinates.
+                let spans_multiple_lines = 
+                    next_logical_line_start.visual_pos.y > start_of_logical_line.visual_pos.y + 1
+                    || (next_logical_line_start.offset == self.text_length() && self.stats.visual_lines > start_of_logical_line.visual_pos.y + 1);
+
+                is_wrapped_line = spans_multiple_lines;
+            } else {
+                sub_line_number = 0;
+            }
+
+            let right_margin_width = if self.word_wrap_column > 0 && sub_line_number > 0 && is_wrapped_line {
+                let number_width = sub_line_number.ilog10() as CoordType + 1;
+                number_width + 1 // space + number
+            } else {
+                0
+            };
+            let has_right_margin = self.word_wrap_column > 0
+                && sub_line_number > 0
+                && is_wrapped_line
+                && text_width >= self.word_wrap_column + right_margin_width;
 
             if line_number_width != 0 {
                 if visual_line >= self.stats.visual_lines {
@@ -1910,6 +1945,9 @@ impl TextBuffer {
                         cursor_beg.logical_pos.y + 1,
                         line_number_width
                     );
+                } else if has_right_margin {
+                    // Wrapped line with right margin? Place "     | " in the margin.
+                    arena_write_fmt!(&*scratch, line, "{:1$} │ ", "", line_number_width);
                 } else {
                     // Wrapped line? Place " ... | " in the margin.
                     let number_width = (cursor_beg.logical_pos.y + 1).ilog10() as usize + 1;
@@ -1967,6 +2005,10 @@ impl TextBuffer {
                     cursor = self.cursor_move_to_logical_internal(cursor, selection_end);
                     selection_off.end = cursor.offset;
                     selection_pos_end = cursor.visual_pos.x;
+                }
+                
+                if self.word_wrap_column > 0 {
+                    selection_pos_end = selection_pos_end.min(self.word_wrap_column);
                 }
 
                 let left = destination.left + self.margin_width - origin.x;
@@ -2107,6 +2149,23 @@ impl TextBuffer {
                 }
 
                 visual_pos_x_max = visual_pos_x_max.max(cursor_end.visual_pos.x);
+            }
+
+            if has_right_margin {
+                let current_visual_width = cursor_end.visual_pos.x;
+                let pad = self.word_wrap_column - current_visual_width;
+                if pad > 0 {
+                    arena_write_fmt!(&*scratch, line, "{:1$}", "", pad as usize);
+                }
+                arena_write_fmt!(&*scratch, line, " {}", sub_line_number);
+
+                // Colorize the right margin.
+                let left = destination.left + self.margin_width + self.word_wrap_column;
+                let top = destination.top + y;
+                fb.blend_fg(
+                    Rect { left, top, right: destination.right, bottom: top + 1 },
+                    StraightRgba::from_le(0xbfbfbfbf),
+                );
             }
 
             fb.replace_text(destination.top + y, destination.left, destination.right, &line);

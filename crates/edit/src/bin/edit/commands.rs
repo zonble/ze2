@@ -383,7 +383,7 @@ pub fn commandbar_shortcut_from_key(key: InputKey) -> Option<CommandBarShortcut>
         text: match key {
             k if k == vk::F2 => "save ",
             k if k == vk::F3 => "file ",
-            k if k == vk::F4 => "quit",
+            k if k == vk::F4 => "quit ",
             _ => return None,
         },
     })

@@ -1129,6 +1129,21 @@ impl Tui {
             destination.right,
             &ruler_str,
         );
+
+        let cursor_x = tb.cursor_visual_pos().x;
+        if cursor_x >= start_col && cursor_x < end_col {
+            let left = destination.left + margin_width + (cursor_x - scroll_x);
+            let highlight_rect = Rect {
+                left,
+                top: destination.top,
+                right: left + 1,
+                bottom: destination.top + 1,
+            };
+            let bg = self.indexed(IndexedColor::BrightRed);
+            let fg = self.contrasted(bg);
+            self.framebuffer.blend_bg(highlight_rect, bg);
+            self.framebuffer.blend_fg(highlight_rect, fg);
+        }
     }
 
     fn render_textarea_eof_marker(
