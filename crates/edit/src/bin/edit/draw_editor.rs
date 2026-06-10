@@ -27,7 +27,8 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
     } + 1;
 
     if let Some(doc) = state.documents.active() {
-        ctx.textarea("textarea", doc.buffer.clone());
+        let word_wrap_column = doc.buffer.borrow().word_wrap_max_column();
+        ctx.textarea("textarea", doc.buffer.clone(), state.wants_ruler, word_wrap_column);
         ctx.inherit_focus();
         if state.wants_editor_focus {
             state.wants_editor_focus = false;

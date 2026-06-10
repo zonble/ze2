@@ -184,7 +184,7 @@ struct CachedTextBuffer {
 /// do almost the same thing, this abstracts over the two.
 enum TextBufferPayload<'a> {
     Editline(&'a mut dyn WriteableDocument),
-    Textarea(RcTextBuffer),
+    Textarea(RcTextBuffer, bool, CoordType),
 }
 
 /// In order for the TUI to show the correct Ctrl/Alt/Shift
@@ -1006,6 +1006,11 @@ impl Tui {
                     destination.right -= 1;
                 }
 
+                if tc.show_ruler && destination.bottom > destination.top {
+                    self.draw_textarea_ruler(&tb, tc, destination);
+                    destination.top += 1;
+                }
+
                 if let Some(res) =
                     tb.render(tc.scroll_offset, destination, tc.has_focus, &mut self.framebuffer)
                 {
@@ -1052,6 +1057,72 @@ impl Tui {
             let mut child = child.borrow_mut();
             self.render_node(&mut child);
         }
+    }
+
+    fn draw_textarea_ruler(&mut self, tb: &TextBuffer, tc: &TextareaContent, destination: Rect) {
+        let margin_width = tb.margin_width();
+        let wrap_col = tc.word_wrap_column;
+
+        if destination.is_empty() {
+            return;
+        }
+
+        // Dim the ruler a bit
+        let bg = self.indexed_alpha(IndexedColor::Background, 1, 2);
+        let fg = self.indexed_alpha(IndexedColor::Foreground, 1, 2);
+        let ruler_rect = Rect {
+            top: destination.top,
+            bottom: (destination.top + 1).min(destination.bottom),
+            left: destination.left,
+            right: destination.right,
+        };
+        self.framebuffer.blend_bg(ruler_rect, bg);
+        self.framebuffer.blend_fg(ruler_rect, fg);
+
+        // Clear margin area
+        self.framebuffer.replace_text(
+            destination.top,
+            destination.left,
+            destination.left + margin_width,
+            " ",
+        );
+
+        let scroll_x = tc.scroll_offset.x;
+        let view_width = destination.width() - margin_width;
+        if view_width <= 0 {
+            return;
+        }
+
+        // Determine visible column range
+        let start_col = scroll_x.max(0);
+        let mut end_col = start_col + view_width;
+        if wrap_col > 0 {
+            end_col = end_col.min(wrap_col);
+        }
+
+        if start_col >= end_col {
+            return;
+        }
+
+        let mut ruler_str = String::with_capacity((end_col - start_col) as usize);
+        for c in start_col..end_col {
+            if c == 0 {
+                ruler_str.push('L');
+            } else if wrap_col > 0 && c == wrap_col - 1 {
+                ruler_str.push('R');
+            } else if (c + 1) % 5 == 0 {
+                ruler_str.push('!');
+            } else {
+                ruler_str.push('-');
+            }
+        }
+
+        self.framebuffer.replace_text(
+            destination.top,
+            destination.left + margin_width + (start_col - scroll_x),
+            destination.right,
+            &ruler_str,
+        );
     }
 
     fn render_textarea_eof_marker(
@@ -2152,8 +2223,8 @@ impl<'a> Context<'a, '_> {
     }
 
     /// Creates a text area.
-    pub fn textarea(&mut self, classname: &'static str, tb: RcTextBuffer) {
-        self.textarea_internal(classname, TextBufferPayload::Textarea(tb));
+    pub fn textarea(&mut self, classname: &'static str, tb: RcTextBuffer, show_ruler: bool, word_wrap_column: CoordType) {
+        self.textarea_internal(classname, TextBufferPayload::Textarea(tb, show_ruler, word_wrap_column));
     }
 
     fn textarea_internal(&mut self, classname: &'static str, payload: TextBufferPayload) -> bool {
@@ -2164,7 +2235,7 @@ impl<'a> Context<'a, '_> {
         let node = &mut *node;
         let single_line = match &payload {
             TextBufferPayload::Editline(_) => true,
-            TextBufferPayload::Textarea(_) => false,
+            TextBufferPayload::Textarea(..) => false,
         };
 
         let buffer = {
@@ -2172,7 +2243,7 @@ impl<'a> Context<'a, '_> {
 
             let cached = match buffers.iter_mut().find(|t| t.node_id == node.id) {
                 Some(cached) => {
-                    if let TextBufferPayload::Textarea(tb) = &payload {
+                    if let TextBufferPayload::Textarea(tb, _, _) = &payload {
                         cached.editor = tb.clone();
                     };
                     cached.seen = true;
@@ -2184,7 +2255,7 @@ impl<'a> Context<'a, '_> {
                         node_id: node.id,
                         editor: match &payload {
                             TextBufferPayload::Editline(_) => TextBuffer::new_rc(true).unwrap(),
-                            TextBufferPayload::Textarea(tb) => tb.clone(),
+                            TextBufferPayload::Textarea(tb, _, _) => tb.clone(),
                         },
                         seen: true,
                     });
@@ -2198,6 +2269,11 @@ impl<'a> Context<'a, '_> {
             unsafe { mem::transmute(&*cached.editor) }
         };
 
+        let (show_ruler, word_wrap_column) = match &payload {
+            TextBufferPayload::Textarea(_, r, c) => (*r, *c),
+            _ => (false, 0),
+        };
+
         node.content = NodeContent::Textarea(TextareaContent {
             buffer,
             scroll_offset: Default::default(),
@@ -2207,6 +2283,8 @@ impl<'a> Context<'a, '_> {
             preferred_column: 0,
             single_line,
             has_focus: self.tui.is_node_focused(node.id),
+            show_ruler,
+            word_wrap_column,
         });
 
         let content = match node.content {
@@ -2305,9 +2383,14 @@ impl<'a> Context<'a, '_> {
         {
             let mouse = self.tui.mouse_position;
             let inner = node_prev.inner;
+            let mut top_offset = 0;
+            if tc.show_ruler {
+                top_offset = 1;
+            }
+
             let text_rect = Rect {
                 left: inner.left + tb.margin_width(),
-                top: inner.top,
+                top: inner.top + top_offset,
                 right: inner.right - !single_line as CoordType,
                 bottom: inner.bottom,
             };
@@ -2319,7 +2402,7 @@ impl<'a> Context<'a, '_> {
             };
             let pos = Point {
                 x: mouse.x - inner.left - tb.margin_width() + tc.scroll_offset.x,
-                y: mouse.y - inner.top + tc.scroll_offset.y,
+                y: mouse.y - inner.top - top_offset + tc.scroll_offset.y,
             };
 
             if text_rect.contains(self.tui.mouse_down_position) {
@@ -2438,9 +2521,9 @@ impl<'a> Context<'a, '_> {
                     }
                     tb.indent_change(if modifiers == kbmod::SHIFT { -1 } else { 1 });
                 }
-                vk::RETURN => {
+                vk::RETURN | vk::F9 => {
                     if single_line {
-                        // If this is just a simple input field, don't consume Enter (= early return).
+                        // If this is just a simple input field, don't consume Enter/F9 (= early return).
                         return false;
                     }
                     write = b"\n";
@@ -3377,7 +3460,7 @@ impl<'a> Context<'a, '_> {
             self.styled_label_add_text("[");
         }
         if let Some(checked) = style.checked {
-            self.styled_label_add_text(if checked { "🗹 " } else { "  " });
+            self.styled_label_add_text(if checked { "✓ " } else { "  " });
         }
         // Label text
         match style.accelerator {
@@ -3799,6 +3882,8 @@ struct TextareaContent<'a> {
 
     single_line: bool,
     has_focus: bool,
+    show_ruler: bool,
+    word_wrap_column: CoordType,
 }
 
 /// NOTE: Must not contain items that require drop().

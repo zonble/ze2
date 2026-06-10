@@ -16,6 +16,7 @@ pub struct Settings {
     pub file_associations: Vec<(String, &'static Language)>,
     pub word_wrap: bool,
     pub word_wrap_column: CoordType,
+    pub ruler: bool,
 }
 
 struct SettingsCell(SemiRefCell<Settings>);
@@ -37,6 +38,7 @@ impl Settings {
             file_associations: Vec::new(),
             word_wrap: false,
             word_wrap_column: 0,
+            ruler: false,
         }
     }
 
@@ -97,6 +99,12 @@ impl Settings {
             self.word_wrap = matches!(word_wrap, "on" | "true");
         }
 
+        if let Some(ruler) = root.get_bool("editor.ruler") {
+            self.ruler = ruler;
+        } else if let Some(ruler) = root.get_str("editor.ruler") {
+            self.ruler = matches!(ruler, "on" | "true");
+        }
+
         if let Some(column) = root.get_number("editor.wordWrapColumn") {
             self.word_wrap_column = normalize_word_wrap_column(column as CoordType);
         }
@@ -114,6 +122,14 @@ impl Settings {
         let settings = &mut *SETTINGS.0.borrow_mut();
         settings.path = path;
         settings.word_wrap = enabled;
+        Ok(())
+    }
+
+    pub fn set_ruler(enabled: bool) -> apperr::Result<()> {
+        let path = Self::write_setting("editor.ruler", if enabled { "true" } else { "false" })?;
+        let settings = &mut *SETTINGS.0.borrow_mut();
+        settings.path = path;
+        settings.ruler = enabled;
         Ok(())
     }
 

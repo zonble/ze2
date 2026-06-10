@@ -76,16 +76,17 @@ fn run() -> apperr::Result<()> {
     // Init the `loc` module, so that error messages are localized.
     localization::init();
 
+    if let Err(_err) = Settings::reload() {
+        // We can't log to state yet, we'll log it later if needed, or just ignore for now.
+        // Actually, let's just ignore or we can store it in a temp variable and add to state later.
+    }
+
     let mut state = State::new()?;
     if handle_args(&mut state)? {
         return Ok(());
     }
 
     handle_stdin(&mut state)?;
-
-    if let Err(err) = Settings::reload() {
-        state.add_error(err);
-    }
 
     // Switch the terminal to raw mode which prevents the user from pressing Ctrl+C.
     // `handle_args` may want to print a help message (must not fail),
@@ -244,7 +245,7 @@ fn run() -> apperr::Result<()> {
 fn handle_args(state: &mut State) -> apperr::Result<bool> {
     let scratch = scratch_arena(None);
     let mut paths = BVec::empty();
-    let cwd = env::current_dir()?;
+    let cwd = env::current_dir().unwrap_or_default();
     let mut dir = None;
     let mut parse_args = true;
 

@@ -157,6 +157,13 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
         if ctx.menubar_menu_button(loc(LocId::FileGoto), 'G', kbmod::CTRL | vk::G) {
             execute_command(ctx, state, Command::Goto);
         }
+        if ctx.menubar_menu_checkbox(loc(LocId::ViewRuler), 'R', vk::NULL, state.wants_ruler) {
+            state.wants_ruler = !state.wants_ruler;
+            if let Err(err) = Settings::set_ruler(state.wants_ruler) {
+                error_log_add(ctx, state, err);
+            }
+        }
+
         if ctx.menubar_menu_checkbox(loc(LocId::ViewWordWrap), 'W', kbmod::ALT | vk::Z, word_wrap) {
             execute_command(ctx, state, Command::WordWrap);
         }
