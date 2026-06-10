@@ -2757,6 +2757,10 @@ impl<'a> Context<'a, '_> {
                     }
                     _ => return false,
                 },
+                vk::J => match modifiers {
+                    kbmod::ALT => tb.join_next_line(),
+                    _ => return false,
+                },
                 vk::H => match modifiers {
                     kbmod::CTRL => tb.delete(CursorMovement::Word, -1),
                     _ => return false,

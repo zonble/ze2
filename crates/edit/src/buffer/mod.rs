@@ -213,6 +213,38 @@ pub enum MoveLineDirection {
     Down,
 }
 
+struct SmartPunctuationRule {
+    input: &'static str,
+    triggers: &'static [&'static str],
+    replacement: &'static str,
+}
+
+enum SmartPunctuationAction {
+    ReplacePrevious(&'static str),
+    Ignore,
+}
+
+const SMART_PUNCTUATION_RULES: &[SmartPunctuationRule] = &[
+    SmartPunctuationRule { input: "，", triggers: &["，"], replacement: "〈" },
+    SmartPunctuationRule { input: "。", triggers: &["。", "."], replacement: "〉" },
+    SmartPunctuationRule { input: "「", triggers: &["「"], replacement: "【" },
+    SmartPunctuationRule { input: "」", triggers: &["」"], replacement: "】" },
+    SmartPunctuationRule { input: "『", triggers: &["『"], replacement: "〖" },
+    SmartPunctuationRule { input: "』", triggers: &["』"], replacement: "〗" },
+];
+
+fn smart_punctuation_action(text: &[u8], prev_bytes: &[u8]) -> Option<SmartPunctuationAction> {
+    let rule = SMART_PUNCTUATION_RULES.iter().find(|rule| text == rule.input.as_bytes())?;
+
+    if rule.triggers.iter().any(|trigger| prev_bytes.ends_with(trigger.as_bytes())) {
+        Some(SmartPunctuationAction::ReplacePrevious(rule.replacement))
+    } else if prev_bytes.ends_with(rule.replacement.as_bytes()) {
+        Some(SmartPunctuationAction::Ignore)
+    } else {
+        None
+    }
+}
+
 /// The result of a call to [`TextBuffer::render()`].
 pub struct RenderResult {
     /// The maximum visual X position we encountered during rendering.
@@ -2358,72 +2390,16 @@ impl TextBuffer {
 
         let offset = self.cursor.offset;
         let prev_bytes = self.read_backward(offset);
-        let mut handled = false;
 
-        if text == "，".as_bytes() {
-            if prev_bytes.ends_with("，".as_bytes()) {
+        match smart_punctuation_action(text, prev_bytes) {
+            Some(SmartPunctuationAction::ReplacePrevious(replacement)) => {
                 self.edit_begin_grouping();
                 self.delete(CursorMovement::Grapheme, -1);
-                self.write_canon("〈".as_bytes());
+                self.write_canon(replacement.as_bytes());
                 self.edit_end_grouping();
-                handled = true;
-            } else if prev_bytes.ends_with("〈".as_bytes()) {
-                handled = true; // do nothing
             }
-        } else if text == "。".as_bytes() {
-            if prev_bytes.ends_with("。".as_bytes()) || prev_bytes.ends_with(".".as_bytes()) {
-                self.edit_begin_grouping();
-                self.delete(CursorMovement::Grapheme, -1);
-                self.write_canon("〉".as_bytes());
-                self.edit_end_grouping();
-                handled = true;
-            } else if prev_bytes.ends_with("〉".as_bytes()) {
-                handled = true; // do nothing
-            }
-        } else if text == "「".as_bytes() {
-            if prev_bytes.ends_with("「".as_bytes()) {
-                self.edit_begin_grouping();
-                self.delete(CursorMovement::Grapheme, -1);
-                self.write_canon("【".as_bytes());
-                self.edit_end_grouping();
-                handled = true;
-            } else if prev_bytes.ends_with("【".as_bytes()) {
-                handled = true; // do nothing
-            }
-        } else if text == "」".as_bytes() {
-            if prev_bytes.ends_with("」".as_bytes()) {
-                self.edit_begin_grouping();
-                self.delete(CursorMovement::Grapheme, -1);
-                self.write_canon("】".as_bytes());
-                self.edit_end_grouping();
-                handled = true;
-            } else if prev_bytes.ends_with("】".as_bytes()) {
-                handled = true; // do nothing
-            }
-        } else if text == "『".as_bytes() {
-            if prev_bytes.ends_with("『".as_bytes()) {
-                self.edit_begin_grouping();
-                self.delete(CursorMovement::Grapheme, -1);
-                self.write_canon("〖".as_bytes());
-                self.edit_end_grouping();
-                handled = true;
-            } else if prev_bytes.ends_with("〖".as_bytes()) {
-                handled = true; // do nothing
-            }
-        } else if text == "』".as_bytes() {
-            if prev_bytes.ends_with("』".as_bytes()) {
-                self.edit_begin_grouping();
-                self.delete(CursorMovement::Grapheme, -1);
-                self.write_canon("〗".as_bytes());
-                self.edit_end_grouping();
-                handled = true;
-            } else if prev_bytes.ends_with("〗".as_bytes()) {
-                handled = true; // do nothing
-            }
-        }
-
-        if !handled {
-            self.write_canon(text);
+            Some(SmartPunctuationAction::Ignore) => {}
+            None => self.write_canon(text),
         }
     }
 
@@ -2646,6 +2622,27 @@ impl TextBuffer {
             end = self.cursor_move_to_logical_internal(beg, Point { x: 0, y: line + 1 });
         }
 
+        if beg.offset == end.offset {
+            return;
+        }
+
+        self.edit_begin(HistoryType::Delete, beg);
+        self.edit_delete(end);
+        self.edit_end();
+
+        self.set_selection(None);
+    }
+
+    /// Joins the next logical line onto the current line by deleting the newline between them.
+    pub fn join_next_line(&mut self) {
+        let line = self.cursor.logical_pos.y;
+        if line >= self.stats.logical_lines - 1 {
+            return;
+        }
+
+        let beg =
+            self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y: line });
+        let end = self.cursor_move_to_logical_internal(beg, Point { x: 0, y: line + 1 });
         if beg.offset == end.offset {
             return;
         }
@@ -3317,6 +3314,45 @@ mod tests {
         .unwrap();
 
         assert_eq!(buffer_contents(&mut buf), "ax\nbx\nx\n");
+    }
+
+    #[test]
+    fn join_next_line_deletes_newline() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"abc\ndef");
+        buf.cursor_move_to_logical(Default::default());
+
+        buf.join_next_line();
+
+        assert_eq!(buffer_contents(&mut buf), "abcdef");
+    }
+
+    #[test]
+    fn join_next_line_deletes_crlf_newline() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(true);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"abc\r\ndef");
+        buf.cursor_move_to_logical(Default::default());
+
+        buf.join_next_line();
+
+        assert_eq!(buffer_contents(&mut buf), "abcdef");
+    }
+
+    #[test]
+    fn join_next_line_on_last_line_does_nothing() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"abc");
+        buf.cursor_move_to_logical(Default::default());
+
+        buf.join_next_line();
+
+        assert_eq!(buffer_contents(&mut buf), "abc");
     }
 
     #[test]
