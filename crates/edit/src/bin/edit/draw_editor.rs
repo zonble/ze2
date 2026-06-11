@@ -20,11 +20,12 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
 
     let size = ctx.size();
     // TODO: The layout code should be able to just figure out the height on its own.
-    let height_reduction = match state.wants_search.kind {
-        StateSearchKind::Search => 4,
-        StateSearchKind::Replace => 5,
-        _ => 2,
-    } + 2; // +1 for the status bar, +1 for the command bar
+    let search_height = match state.wants_search.kind {
+        StateSearchKind::Search => 2,
+        StateSearchKind::Replace => 3,
+        _ => 0,
+    };
+    let height_reduction = search_height + 2; // +1 for the status bar, +1 for the command bar
 
     if let Some(doc) = state.documents.active() {
         let word_wrap_column = doc.buffer.borrow().word_wrap_max_column();
