@@ -189,6 +189,14 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
                 },
             );
         }
+        if ctx.menubar_menu_checkbox(
+            loc(LocId::ViewCenterText),
+            'C',
+            vk::NULL,
+            state.wants_center_text,
+        ) {
+            execute_command(ctx, state, Command::CenterText);
+        }
     }
 
     ctx.menubar_menu_end();

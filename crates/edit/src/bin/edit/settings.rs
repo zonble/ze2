@@ -17,6 +17,7 @@ pub struct Settings {
     pub word_wrap: bool,
     pub word_wrap_column: CoordType,
     pub ruler: bool,
+    pub center_text: bool,
 }
 
 struct SettingsCell(SemiRefCell<Settings>);
@@ -39,6 +40,7 @@ impl Settings {
             word_wrap: false,
             word_wrap_column: 0,
             ruler: false,
+            center_text: false,
         }
     }
 
@@ -109,6 +111,12 @@ impl Settings {
             self.word_wrap_column = normalize_word_wrap_column(column as CoordType);
         }
 
+        if let Some(center_text) = root.get_bool("editor.centerText") {
+            self.center_text = center_text;
+        } else if let Some(center_text) = root.get_str("editor.centerText") {
+            self.center_text = matches!(center_text, "on" | "true");
+        }
+
         Ok(())
     }
 
@@ -130,6 +138,15 @@ impl Settings {
         let settings = &mut *SETTINGS.0.borrow_mut();
         settings.path = path;
         settings.ruler = enabled;
+        Ok(())
+    }
+
+    pub fn set_center_text(enabled: bool) -> apperr::Result<()> {
+        let path =
+            Self::write_setting("editor.centerText", if enabled { "true" } else { "false" })?;
+        let settings = &mut *SETTINGS.0.borrow_mut();
+        settings.path = path;
+        settings.center_text = enabled;
         Ok(())
     }
 

@@ -184,7 +184,7 @@ struct CachedTextBuffer {
 /// do almost the same thing, this abstracts over the two.
 enum TextBufferPayload<'a> {
     Editline(&'a mut dyn WriteableDocument),
-    Textarea(RcTextBuffer, bool, CoordType),
+    Textarea(RcTextBuffer, bool, CoordType, CoordType), // tb, show_ruler, word_wrap_column, center_offset
 }
 
 /// In order for the TUI to show the correct Ctrl/Alt/Shift
@@ -1001,7 +1001,7 @@ impl Tui {
             NodeContent::Textarea(tc) => {
                 let mut tb = tc.buffer.borrow_mut();
                 let mut destination = Rect {
-                    left: inner_clipped.left,
+                    left: inner_clipped.left + tc.center_offset,
                     top: inner_clipped.top,
                     right: inner_clipped.right,
                     bottom: inner_clipped.bottom,
@@ -2248,8 +2248,18 @@ impl<'a> Context<'a, '_> {
     }
 
     /// Creates a text area.
-    pub fn textarea(&mut self, classname: &'static str, tb: RcTextBuffer, show_ruler: bool, word_wrap_column: CoordType) {
-        self.textarea_internal(classname, TextBufferPayload::Textarea(tb, show_ruler, word_wrap_column));
+    pub fn textarea(
+        &mut self,
+        classname: &'static str,
+        tb: RcTextBuffer,
+        show_ruler: bool,
+        word_wrap_column: CoordType,
+        center_offset: CoordType,
+    ) {
+        self.textarea_internal(
+            classname,
+            TextBufferPayload::Textarea(tb, show_ruler, word_wrap_column, center_offset),
+        );
     }
 
     fn textarea_internal(&mut self, classname: &'static str, payload: TextBufferPayload) -> bool {
@@ -2268,7 +2278,7 @@ impl<'a> Context<'a, '_> {
 
             let cached = match buffers.iter_mut().find(|t| t.node_id == node.id) {
                 Some(cached) => {
-                    if let TextBufferPayload::Textarea(tb, _, _) = &payload {
+                    if let TextBufferPayload::Textarea(tb, _, _, _) = &payload {
                         cached.editor = tb.clone();
                     };
                     cached.seen = true;
@@ -2280,7 +2290,7 @@ impl<'a> Context<'a, '_> {
                         node_id: node.id,
                         editor: match &payload {
                             TextBufferPayload::Editline(_) => TextBuffer::new_rc(true).unwrap(),
-                            TextBufferPayload::Textarea(tb, _, _) => tb.clone(),
+                            TextBufferPayload::Textarea(tb, _, _, _) => tb.clone(),
                         },
                         seen: true,
                     });
@@ -2294,9 +2304,9 @@ impl<'a> Context<'a, '_> {
             unsafe { mem::transmute(&*cached.editor) }
         };
 
-        let (show_ruler, word_wrap_column) = match &payload {
-            TextBufferPayload::Textarea(_, r, c) => (*r, *c),
-            _ => (false, 0),
+        let (show_ruler, word_wrap_column, center_offset) = match &payload {
+            TextBufferPayload::Textarea(_, r, c, o) => (*r, *c, *o),
+            _ => (false, 0, 0),
         };
 
         node.content = NodeContent::Textarea(TextareaContent {
@@ -2310,6 +2320,7 @@ impl<'a> Context<'a, '_> {
             has_focus: self.tui.is_node_focused(node.id),
             show_ruler,
             word_wrap_column,
+            center_offset,
         });
 
         let content = match node.content {
@@ -2334,6 +2345,8 @@ impl<'a> Context<'a, '_> {
                 if !single_line {
                     // Subtract -1 to account for the scrollbar.
                     text_width -= 1;
+                    // Subtract center_offset to account for the left margin when centering.
+                    text_width -= center_offset;
                 }
 
                 let mut make_cursor_visible;
@@ -3923,6 +3936,7 @@ struct TextareaContent<'a> {
     has_focus: bool,
     show_ruler: bool,
     word_wrap_column: CoordType,
+    center_offset: CoordType,
 }
 
 /// NOTE: Must not contain items that require drop().

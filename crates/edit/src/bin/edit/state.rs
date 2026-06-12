@@ -158,6 +158,7 @@ pub struct State {
     pub search_success: bool,
 
     pub wants_ruler: bool,
+    pub wants_center_text: bool,
 
     pub wants_language_picker: bool,
 
@@ -224,6 +225,7 @@ impl State {
             search_success: true,
 
             wants_ruler: settings_ruler,
+            wants_center_text: Settings::borrow().center_text,
 
             wants_language_picker: false,
 

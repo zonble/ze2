@@ -41,6 +41,7 @@ pub enum Command {
     CloseFileAndExitIfLast,
     SetWordWrapColumn,
     Menu,
+    CenterText,
 }
 
 pub struct CommandInvocation {
@@ -309,6 +310,14 @@ pub fn execute_command_invocation(
         Command::Menu => {
             state.wants_menubar_focus = true;
             state.wants_editor_focus = false;
+        }
+        Command::CenterText => {
+            let center_text =
+                command_bool_argument(&argument).unwrap_or(!state.wants_center_text);
+            state.wants_center_text = center_text;
+            if let Err(err) = Settings::set_center_text(center_text) {
+                error_log_add(ctx, state, err);
+            }
         }
     }
 
@@ -704,6 +713,11 @@ const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
     },
     CommandDefinition { command: Command::Menu, names: &["menu"], loc_id: None },
+    CommandDefinition {
+        command: Command::CenterText,
+        names: &["set-center-text", "toggle-center-text", "center-text"],
+        loc_id: Some(LocId::ViewCenterText),
+    },
     CommandDefinition {
         command: Command::About,
         names: &["about"],
