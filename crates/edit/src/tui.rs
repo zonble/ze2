@@ -713,6 +713,7 @@ impl Tui {
             input_mouse_click,
             input_scroll_delta,
             input_consumed,
+            context_menu_requested: false,
 
             tree,
             last_modal: None,
@@ -1529,6 +1530,7 @@ pub struct Context<'a, 'input> {
     /// By how much the mouse wheel was scrolled since the last frame.
     input_scroll_delta: Point,
     input_consumed: bool,
+    context_menu_requested: bool,
 
     tree: Tree<'a>,
     last_modal: Option<&'a NodeCell<'a>>,
@@ -1916,6 +1918,10 @@ impl<'a> Context<'a, '_> {
     /// Returns None if the input was already consumed.
     pub fn keyboard_input(&self) -> Option<InputKey> {
         if self.input_consumed { None } else { self.input_keyboard }
+    }
+
+    pub fn context_menu_requested(&self) -> bool {
+        self.context_menu_requested
     }
 
     #[inline]
@@ -2525,6 +2531,15 @@ impl<'a> Context<'a, '_> {
                         }
                     }
                 } else {
+                    if !single_line
+                        && self.tui.mouse_state == InputMouseState::Right
+                        && !tb.has_selection()
+                    {
+                        self.context_menu_requested = true;
+                        self.set_input_consumed();
+                        return false;
+                    }
+
                     match self.input_mouse_click {
                         5.. => {}
                         4 => tb.select_all(),

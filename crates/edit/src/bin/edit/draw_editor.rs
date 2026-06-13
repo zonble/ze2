@@ -50,6 +50,10 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
 
         ctx.textarea("textarea", doc.buffer.clone(), state.wants_ruler, effective_wrap_column, center_offset);
         ctx.inherit_focus();
+        if ctx.context_menu_requested() {
+            state.wants_menubar_focus = true;
+            state.wants_editor_focus = false;
+        }
         if state.wants_editor_focus {
             state.wants_editor_focus = false;
             ctx.steal_focus();
