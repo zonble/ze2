@@ -173,6 +173,7 @@ pub struct State {
     pub wants_indentation_picker: bool,
     pub wants_go_to_file: bool,
     pub wants_about: bool,
+    pub wants_word_count: bool,
     pub wants_close: bool,
     pub wants_close_after_save: bool,
     pub wants_exit_after_close: bool,
@@ -240,6 +241,7 @@ impl State {
             wants_indentation_picker: false,
             wants_go_to_file: false,
             wants_about: false,
+            wants_word_count: false,
             wants_close: false,
             wants_close_after_save: false,
             wants_exit_after_close: false,
@@ -284,6 +286,7 @@ impl State {
             || self.wants_encoding_change != StateEncodingChange::None
             || self.wants_go_to_file
             || self.wants_about
+            || self.wants_word_count
             || self.error_log_count != 0
     }
 }

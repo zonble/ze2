@@ -18,6 +18,7 @@ pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::F)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::E)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::V)
+        || menu_shortcut_selected(ctx, menubar_was_visible, vk::U)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::H);
     if !state.menubar_visible && !focus_shortcut {
         return;
@@ -56,6 +57,13 @@ pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool)
                 menu_shortcut_selected(ctx, menubar_was_visible, vk::V),
             ) {
                 draw_menu_view(ctx, state);
+            }
+            if ctx.menubar_menu_begin_selected(
+                loc(LocId::Utils),
+                'U',
+                menu_shortcut_selected(ctx, menubar_was_visible, vk::U),
+            ) {
+                draw_menu_utils(ctx, state);
             }
         }
         if ctx.menubar_menu_begin_selected(
@@ -213,6 +221,13 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
     ctx.menubar_menu_end();
 }
 
+fn draw_menu_utils(ctx: &mut Context, state: &mut State) {
+    if ctx.menubar_menu_button(loc(LocId::UtilsWordCount), 'W', vk::NULL) {
+        execute_command(ctx, state, Command::WordCount);
+    }
+    ctx.menubar_menu_end();
+}
+
 fn draw_menu_help(ctx: &mut Context, state: &mut State) {
     if ctx.menubar_menu_button(loc(LocId::HelpAbout), 'A', vk::NULL) {
         execute_command(ctx, state, Command::About);
@@ -263,5 +278,66 @@ pub fn draw_dialog_about(ctx: &mut Context, state: &mut State) {
     }
     if ctx.modal_end() {
         state.wants_about = false;
+    }
+}
+
+pub fn draw_dialog_word_count(ctx: &mut Context, state: &mut State) {
+    let Some(doc) = state.documents.active() else {
+        state.wants_word_count = false;
+        return;
+    };
+
+    let stats = doc.buffer.borrow().word_count_statistics();
+
+    ctx.modal_begin("word-count", loc(LocId::WordCountDialogTitle));
+    {
+        ctx.block_begin("content");
+        ctx.inherit_focus();
+        ctx.attr_padding(Rect::three(1, 2, 1));
+        {
+            ctx.label(
+                "all-characters",
+                &arena_format!(
+                    ctx.arena(),
+                    "{}: {}",
+                    loc(LocId::WordCountAllCharacters),
+                    stats.all_characters
+                ),
+            );
+            ctx.label(
+                "latin-words",
+                &arena_format!(
+                    ctx.arena(),
+                    "{}: {}",
+                    loc(LocId::WordCountLatinWords),
+                    stats.latin_words
+                ),
+            );
+            ctx.label(
+                "asian-characters",
+                &arena_format!(
+                    ctx.arena(),
+                    "{}: {}",
+                    loc(LocId::WordCountAsianCharacters),
+                    stats.asian_characters
+                ),
+            );
+
+            ctx.block_begin("choices");
+            ctx.inherit_focus();
+            ctx.attr_padding(Rect::three(1, 2, 0));
+            ctx.attr_position(Position::Center);
+            {
+                if ctx.button("ok", loc(LocId::Ok), ButtonStyle::default()) {
+                    state.wants_word_count = false;
+                }
+                ctx.inherit_focus();
+            }
+            ctx.block_end();
+        }
+        ctx.block_end();
+    }
+    if ctx.modal_end() {
+        state.wants_word_count = false;
     }
 }

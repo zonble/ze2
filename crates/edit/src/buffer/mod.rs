@@ -49,6 +49,7 @@ use crate::lsh::{HighlightKind, Highlighter, Language};
 use crate::oklab::StraightRgba;
 use crate::simd::memchr2;
 use crate::unicode::{self, Cursor, MeasurementConfig};
+use crate::word_count::{self, WordCountStatistics};
 use crate::{icu, simd};
 
 /// The margin template is used for line numbers.
@@ -372,6 +373,10 @@ impl TextBuffer {
     /// that is, the number of lines after layout.
     pub fn visual_line_count(&self) -> CoordType {
         self.stats.visual_lines
+    }
+
+    pub fn word_count_statistics(&self) -> WordCountStatistics {
+        word_count::count_document(&self.buffer, self.text_length())
     }
 
     /// Does the buffer need to be saved?

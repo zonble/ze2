@@ -37,6 +37,7 @@ pub enum Command {
     Goto,
     WordWrap,
     About,
+    WordCount,
     SaveAndCloseFile,
     CloseFileAndExitIfLast,
     SetWordWrapColumn,
@@ -279,6 +280,7 @@ pub fn execute_command_invocation(
             }
         }
         Command::About => state.wants_about = true,
+        Command::WordCount => state.wants_word_count = true,
         Command::SetWordWrapColumn => {
             let col = argument
                 .as_deref()
@@ -722,6 +724,11 @@ const COMMANDS: &[CommandDefinition] = &[
         command: Command::About,
         names: &["about"],
         loc_id: Some(LocId::HelpAbout),
+    },
+    CommandDefinition {
+        command: Command::WordCount,
+        names: &["word-count"],
+        loc_id: Some(LocId::UtilsWordCount),
     },
 ];
 
