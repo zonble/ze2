@@ -2250,15 +2250,58 @@ impl TextBuffer {
                 fb.set_cursor(cursor, self.overtype);
 
                 if self.line_highlight_enabled && selection_beg >= selection_end {
+                    let highlight_right = if self.word_wrap_column > 0 {
+                        (destination.left + self.margin_width + self.word_wrap_column)
+                            .min(destination.right)
+                    } else {
+                        destination.right
+                    };
                     fb.blend_bg(
                         Rect {
                             left: destination.left,
                             top: cursor.y,
-                            right: destination.right,
+                            right: highlight_right,
                             bottom: cursor.y + 1,
                         },
                         StraightRgba::from_le(0x7f7f7f7f),
                     );
+                }
+
+                // Highlight the character under the cursor with a red background,
+                // drawn after the line highlight so the red is always visible.
+                // When at end-of-line, empty line, or EOF, still show a 1-cell block.
+                {
+                    let char_visual_width = if self.cursor.offset < self.text_length() {
+                        let cursor_next = self.cursor_move_to_logical_internal(
+                            self.cursor,
+                            Point {
+                                x: self.cursor.logical_pos.x + 1,
+                                y: self.cursor.logical_pos.y,
+                            },
+                        );
+                        // Visible character on the same visual line → use actual width.
+                        // Newline / end-of-line / wide-char wrap → fall back to 1.
+                        if cursor_next.visual_pos.y == self.cursor.visual_pos.y {
+                            (cursor_next.visual_pos.x - self.cursor.visual_pos.x).max(1)
+                        } else {
+                            1
+                        }
+                    } else {
+                        1 // EOF
+                    };
+                    let char_right = (cursor.x + char_visual_width).min(text.right);
+                    if cursor.x < char_right {
+                        let bg = fb.indexed(IndexedColor::BrightRed);
+                        let fg = fb.contrasted(bg);
+                        let char_rect = Rect {
+                            left: cursor.x,
+                            top: cursor.y,
+                            right: char_right,
+                            bottom: cursor.y + 1,
+                        };
+                        fb.blend_bg(char_rect, bg);
+                        fb.blend_fg(char_rect, fg);
+                    }
                 }
             }
         }

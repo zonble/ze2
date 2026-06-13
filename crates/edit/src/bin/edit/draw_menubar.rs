@@ -189,6 +189,17 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
                 },
             );
         }
+        if ctx.menubar_menu_checkbox(loc(LocId::ViewResetWordWrapColumn), '0', vk::NULL, word_wrap_max == 0)
+        {
+            execute_command_invocation(
+                ctx,
+                state,
+                CommandInvocation {
+                    command: Command::SetWordWrapColumn,
+                    argument: Some("0".into()),
+                },
+            );
+        }
         if ctx.menubar_menu_checkbox(
             loc(LocId::ViewCenterText),
             'C',

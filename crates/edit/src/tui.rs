@@ -1013,7 +1013,7 @@ impl Tui {
                 }
 
                 if tc.show_ruler && destination.bottom > destination.top {
-                    self.draw_textarea_ruler(&tb, tc, destination);
+                    self.draw_textarea_ruler(&tb, tc, destination, inner_clipped);
                     destination.top += 1;
                 }
 
@@ -1065,7 +1065,13 @@ impl Tui {
         }
     }
 
-    fn draw_textarea_ruler(&mut self, tb: &TextBuffer, tc: &TextareaContent, destination: Rect) {
+    fn draw_textarea_ruler(
+        &mut self,
+        tb: &TextBuffer,
+        tc: &TextareaContent,
+        destination: Rect,
+        container: Rect,
+    ) {
         let margin_width = tb.margin_width();
         let wrap_col = tc.word_wrap_column;
 
@@ -1073,25 +1079,41 @@ impl Tui {
             return;
         }
 
-        // Dim the ruler a bit
-        let bg = self.indexed_alpha(IndexedColor::Background, 1, 2);
-        let fg = self.indexed_alpha(IndexedColor::Foreground, 1, 2);
+        // Ruler background with contrasted foreground
+        let bg = self.indexed(IndexedColor::Black);
+        let fg = self.contrasted(bg);
         let ruler_rect = Rect {
             top: destination.top,
             bottom: (destination.top + 1).min(destination.bottom),
-            left: destination.left,
-            right: destination.right,
+            left: container.left,
+            right: container.right,
         };
         self.framebuffer.blend_bg(ruler_rect, bg);
         self.framebuffer.blend_fg(ruler_rect, fg);
 
-        // Clear margin area
-        self.framebuffer.replace_text(
-            destination.top,
-            destination.left,
-            destination.left + margin_width,
-            " ",
-        );
+        // Draw total logical line count in the margin area (left side).
+        if margin_width > 0 {
+            let logical_lines = tb.logical_line_count();
+            let count_str = format!("{logical_lines}");
+            // Right-align within margin_width (margin includes " | " suffix, so usable = margin_width - 3)
+            let usable = (margin_width - 3).max(0) as usize;
+            let padded = format!("{:>width$}", count_str, width = usable);
+            let display = format!("{padded} │ ");
+            self.framebuffer.replace_text(
+                destination.top,
+                destination.left,
+                destination.left + margin_width,
+                &display,
+            );
+        } else {
+            // No margin – still clear it
+            self.framebuffer.replace_text(
+                destination.top,
+                destination.left,
+                destination.left + margin_width,
+                " ",
+            );
+        }
 
         let scroll_x = tc.scroll_offset.x;
         let view_width = destination.width() - margin_width;
@@ -1116,10 +1138,14 @@ impl Tui {
                 ruler_str.push('L');
             } else if wrap_col > 0 && c == wrap_col - 1 {
                 ruler_str.push('R');
-            } else if (c + 1) % 5 == 0 {
+            } else if c % 10 == 0 {
+                let s = (c / 10).to_string();
+                let last_char = s.chars().last().unwrap_or('_');
+                ruler_str.push(last_char);
+            } else if c % 5 == 0 {
                 ruler_str.push('!');
             } else {
-                ruler_str.push('-');
+                ruler_str.push('_');
             }
         }
 
@@ -1130,6 +1156,21 @@ impl Tui {
             &ruler_str,
         );
 
+        // Draw total visual line count on the right side when word wrap is enabled.
+        if wrap_col > 0 {
+            let visual_lines = tb.visual_line_count();
+            let right_str = format!(" {visual_lines}");
+            // The right info starts just after the ruler body (wrap_col position in screen space).
+            let ruler_body_right =
+                destination.left + margin_width + (end_col - scroll_x);
+            self.framebuffer.replace_text(
+                destination.top,
+                ruler_body_right,
+                destination.right,
+                &right_str,
+            );
+        }
+
         let cursor_x = tb.cursor_visual_pos().x;
         if cursor_x >= start_col && cursor_x < end_col {
             let left = destination.left + margin_width + (cursor_x - scroll_x);
@@ -1139,8 +1180,8 @@ impl Tui {
                 right: left + 1,
                 bottom: destination.top + 1,
             };
-            let bg = self.indexed(IndexedColor::BrightRed);
-            let fg = self.contrasted(bg);
+            let bg = self.indexed(IndexedColor::White);
+            let fg = self.indexed(IndexedColor::Black);
             self.framebuffer.blend_bg(highlight_rect, bg);
             self.framebuffer.blend_fg(highlight_rect, fg);
         }
@@ -2427,7 +2468,7 @@ impl<'a> Context<'a, '_> {
             }
 
             let text_rect = Rect {
-                left: inner.left + tb.margin_width(),
+                left: inner.left + tc.center_offset + tb.margin_width(),
                 top: inner.top + top_offset,
                 right: inner.right - !single_line as CoordType,
                 bottom: inner.bottom,
@@ -2439,7 +2480,7 @@ impl<'a> Context<'a, '_> {
                 bottom: inner.bottom,
             };
             let pos = Point {
-                x: mouse.x - inner.left - tb.margin_width() + tc.scroll_offset.x,
+                x: mouse.x - inner.left - tc.center_offset - tb.margin_width() + tc.scroll_offset.x,
                 y: mouse.y - inner.top - top_offset + tc.scroll_offset.y,
             };
 
