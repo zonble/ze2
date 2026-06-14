@@ -48,6 +48,13 @@ pub enum Command {
 pub struct CommandInvocation {
     pub command: Command,
     pub argument: Option<String>,
+    pub focus_target: CommandFocusTarget,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum CommandFocusTarget {
+    Default,
+    SearchPanel,
 }
 
 pub struct CommandBarShortcut {
@@ -55,7 +62,11 @@ pub struct CommandBarShortcut {
 }
 
 pub fn execute_command(ctx: &mut Context, state: &mut State, command: Command) {
-    execute_command_invocation(ctx, state, CommandInvocation { command, argument: None });
+    execute_command_invocation(
+        ctx,
+        state,
+        CommandInvocation { command, argument: None, focus_target: CommandFocusTarget::Default },
+    );
 }
 
 pub fn execute_command_invocation(
@@ -63,7 +74,7 @@ pub fn execute_command_invocation(
     state: &mut State,
     invocation: CommandInvocation,
 ) {
-    let CommandInvocation { command, argument } = invocation;
+    let CommandInvocation { command, argument, focus_target } = invocation;
     match command {
         Command::NewFile => draw_add_untitled_document(ctx, state),
         Command::OpenFile => {
@@ -178,7 +189,10 @@ pub fn execute_command_invocation(
                 state.wants_search.kind = StateSearchKind::Search;
                 if let Some(argument) = command_string_argument(&argument) {
                     state.search_needle = argument;
-                    state.wants_search.focus = false;
+                    state.wants_search.focus = focus_target == CommandFocusTarget::SearchPanel;
+                    if focus_target == CommandFocusTarget::SearchPanel {
+                        state.wants_editor_focus = false;
+                    }
                     if let Err(err) = icu::init() {
                         error_log_add(ctx, state, err.into());
                         state.wants_search.kind = StateSearchKind::Disabled;
@@ -187,6 +201,7 @@ pub fn execute_command_invocation(
                     }
                 } else {
                     state.wants_search.focus = true;
+                    state.wants_editor_focus = false;
                 }
             }
         }
@@ -196,7 +211,10 @@ pub fn execute_command_invocation(
                 if let Some((needle, replacement)) = command_replace_arguments(&argument) {
                     state.search_needle = needle;
                     state.search_replacement = replacement;
-                    state.wants_search.focus = false;
+                    state.wants_search.focus = focus_target == CommandFocusTarget::SearchPanel;
+                    if focus_target == CommandFocusTarget::SearchPanel {
+                        state.wants_editor_focus = false;
+                    }
                     if let Err(err) = icu::init() {
                         error_log_add(ctx, state, err.into());
                         state.wants_search.kind = StateSearchKind::Disabled;
@@ -205,6 +223,7 @@ pub fn execute_command_invocation(
                     }
                 } else {
                     state.wants_search.focus = true;
+                    state.wants_editor_focus = false;
                 }
             }
         }
@@ -369,6 +388,7 @@ pub fn command_invocation_from_shortcut(key: InputKey) -> Option<CommandInvocati
         return Some(CommandInvocation {
             command: Command::InsertText,
             argument: Some(text.to_string()),
+            focus_target: CommandFocusTarget::Default,
         });
     }
 
@@ -386,7 +406,11 @@ pub fn command_invocation_from_shortcut(key: InputKey) -> Option<CommandInvocati
         k if k == kbmod::CTRL | vk::L => Command::SelectLine,
         _ => return None,
     })
-    .map(|command| CommandInvocation { command, argument: None })
+    .map(|command| CommandInvocation {
+        command,
+        argument: None,
+        focus_target: CommandFocusTarget::Default,
+    })
 }
 
 pub fn commandbar_shortcut_from_key(key: InputKey) -> Option<CommandBarShortcut> {
@@ -435,6 +459,10 @@ pub fn autocomplete_commands(prefix: &str) -> Vec<String> {
 }
 
 pub fn command_from_text(text: &str) -> Option<CommandInvocation> {
+    if let Some(invocation) = command_from_shorthand(text) {
+        return Some(invocation);
+    }
+
     let normalized = normalize_command_name(text);
     if normalized.is_empty() {
         return None;
@@ -442,16 +470,56 @@ pub fn command_from_text(text: &str) -> Option<CommandInvocation> {
 
     for definition in COMMANDS {
         if definition.names.iter().any(|name| normalized == normalize_command_name(name)) {
-            return Some(CommandInvocation { command: definition.command, argument: None });
+            return Some(CommandInvocation {
+                command: definition.command,
+                argument: None,
+                focus_target: CommandFocusTarget::Default,
+            });
         }
 
         if definition.loc_id.is_some_and(|loc_id| normalized == normalize_command_name(loc(loc_id)))
         {
-            return Some(CommandInvocation { command: definition.command, argument: None });
+            return Some(CommandInvocation {
+                command: definition.command,
+                argument: None,
+                focus_target: CommandFocusTarget::Default,
+            });
         }
     }
 
     command_from_text_with_argument(text)
+}
+
+fn command_from_shorthand(text: &str) -> Option<CommandInvocation> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+
+    if text.chars().all(|ch| ch.is_ascii_digit()) {
+        return Some(CommandInvocation {
+            command: Command::Goto,
+            argument: Some(text.to_string()),
+            focus_target: CommandFocusTarget::Default,
+        });
+    }
+
+    if let Some((needle, replacement)) = text.strip_prefix("s/").and_then(|text| text.split_once('/'))
+        && !needle.is_empty()
+    {
+        return Some(CommandInvocation {
+            command: Command::Replace,
+            argument: Some(format!("{needle} {replacement}")),
+            focus_target: CommandFocusTarget::SearchPanel,
+        });
+    }
+
+    let needle = text.strip_prefix('/')?.trim();
+    (!needle.is_empty()).then(|| CommandInvocation {
+        command: Command::Find,
+        argument: Some(needle.to_string()),
+        focus_target: CommandFocusTarget::SearchPanel,
+    })
 }
 
 fn command_from_text_with_argument(text: &str) -> Option<CommandInvocation> {
@@ -471,6 +539,7 @@ fn command_from_text_with_argument(text: &str) -> Option<CommandInvocation> {
             return Some(CommandInvocation {
                 command: definition.command,
                 argument: Some(argument.trim().to_string()),
+                focus_target: CommandFocusTarget::Default,
             });
         }
     }
@@ -507,37 +576,37 @@ mod tests {
     fn command_text_accepts_common_aliases() {
         assert!(matches!(
             command_from_text("save as"),
-            Some(CommandInvocation { command: Command::SaveAs, argument: None })
+            Some(CommandInvocation { command: Command::SaveAs, argument: None, .. })
         ));
         assert!(matches!(
             command_from_text("select-all"),
-            Some(CommandInvocation { command: Command::SelectAll, argument: None })
+            Some(CommandInvocation { command: Command::SelectAll, argument: None, .. })
         ));
         assert!(matches!(
             command_from_text("Go to Line:Column..."),
-            Some(CommandInvocation { command: Command::Goto, argument: None })
+            Some(CommandInvocation { command: Command::Goto, argument: None, .. })
         ));
         assert!(matches!(
             command_from_text("e"),
-            Some(CommandInvocation { command: Command::OpenFile, argument: None })
+            Some(CommandInvocation { command: Command::OpenFile, argument: None, .. })
         ));
         assert!(matches!(
             command_from_text("edit"),
-            Some(CommandInvocation { command: Command::OpenFile, argument: None })
+            Some(CommandInvocation { command: Command::OpenFile, argument: None, .. })
         ));
         assert!(matches!(
             command_from_text("file"),
-            Some(CommandInvocation { command: Command::SaveAndCloseFile, argument: None })
+            Some(CommandInvocation { command: Command::SaveAndCloseFile, argument: None, .. })
         ));
         assert!(matches!(
             command_from_text("quit"),
-            Some(CommandInvocation { command: Command::CloseFileAndExitIfLast, argument: None })
+            Some(CommandInvocation { command: Command::CloseFileAndExitIfLast, argument: None, .. })
         ));
     }
 
     #[test]
     fn command_text_preserves_argument_tail() {
-        let Some(CommandInvocation { command: Command::OpenFile, argument: Some(argument) }) =
+        let Some(CommandInvocation { command: Command::OpenFile, argument: Some(argument), .. }) =
             command_from_text("open path with spaces.txt")
         else {
             panic!("open command did not parse");
@@ -555,7 +624,7 @@ mod tests {
             ("go-to-line 42", Command::Goto, "42"),
             ("word-wrap false", Command::WordWrap, "false"),
         ] {
-            let Some(CommandInvocation { command, argument: Some(argument) }) =
+            let Some(CommandInvocation { command, argument: Some(argument), focus_target }) =
                 command_from_text(text)
             else {
                 panic!("command did not parse: {text}");
@@ -563,7 +632,44 @@ mod tests {
 
             assert!(command == expected_command);
             assert!(argument == expected_argument);
+            assert!(focus_target == CommandFocusTarget::Default);
         }
+    }
+
+    #[test]
+    fn command_text_accepts_commandbar_shorthands() {
+        for (text, expected_command, expected_argument, expected_focus_target) in [
+            ("42", Command::Goto, "42", CommandFocusTarget::Default),
+            (" 42 ", Command::Goto, "42", CommandFocusTarget::Default),
+            ("/needle", Command::Find, "needle", CommandFocusTarget::SearchPanel),
+            (
+                "/needle with spaces",
+                Command::Find,
+                "needle with spaces",
+                CommandFocusTarget::SearchPanel,
+            ),
+            (" / needle ", Command::Find, "needle", CommandFocusTarget::SearchPanel),
+            ("s/old/new", Command::Replace, "old new", CommandFocusTarget::SearchPanel),
+            (
+                "s/old/new value",
+                Command::Replace,
+                "old new value",
+                CommandFocusTarget::SearchPanel,
+            ),
+        ] {
+            let Some(CommandInvocation { command, argument: Some(argument), focus_target }) =
+                command_from_text(text)
+            else {
+                panic!("command shorthand did not parse: {text}");
+            };
+
+            assert!(command == expected_command);
+            assert!(argument == expected_argument);
+            assert!(focus_target == expected_focus_target);
+        }
+
+        assert!(command_from_text("/").is_none());
+        assert!(command_from_text("s//new").is_none());
     }
 
     #[test]
@@ -602,7 +708,7 @@ mod tests {
             (kbmod::ALT | vk::N1, "！"),
             (kbmod::ALT | vk::EXCLAMATION, "！"),
         ] {
-            let Some(CommandInvocation { command: Command::InsertText, argument: Some(text) }) =
+            let Some(CommandInvocation { command: Command::InsertText, argument: Some(text), .. }) =
                 command_invocation_from_shortcut(key)
             else {
                 panic!("insert shortcut did not parse");

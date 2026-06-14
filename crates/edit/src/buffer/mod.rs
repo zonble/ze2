@@ -1940,7 +1940,7 @@ impl TextBuffer {
                     let end_of_logical_line = self.cursor_move_to_logical_internal(start_of_logical_line, Point { x: COORD_TYPE_SAFE_MAX, y: start_of_logical_line.logical_pos.y });
                     let char_count = end_of_logical_line.logical_pos.x;
                     char_count_to_display = Some(char_count);
-                    width += 3 + char_count.max(1).ilog10() as CoordType + 1; // " │ " + char_count
+                    width += 3 + char_count.max(1).ilog10() as CoordType + 1; // spaces + char_count
                 }
                 
                 width
@@ -2183,7 +2183,7 @@ impl TextBuffer {
                     arena_write_fmt!(&*scratch, line, "{:1$}", "", pad as usize);
                 }
                 if let Some(char_count) = char_count_to_display {
-                    arena_write_fmt!(&*scratch, line, " {} │ {}", sub_line_number, char_count);
+                    arena_write_fmt!(&*scratch, line, " {}   {}", sub_line_number, char_count);
                 } else {
                     arena_write_fmt!(&*scratch, line, " {}", sub_line_number);
                 }
