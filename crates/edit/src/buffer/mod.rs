@@ -1852,6 +1852,7 @@ impl TextBuffer {
         origin: Point,
         destination: Rect,
         focused: bool,
+        highlight_current_char: bool,
         fb: &mut Framebuffer,
     ) -> Option<RenderResult> {
         if destination.is_empty() {
@@ -1903,16 +1904,18 @@ impl TextBuffer {
             if self.word_wrap_column > 0 && visual_line < self.stats.visual_lines {
                 let start_of_logical_line =
                     self.goto_line_start(cursor_beg, cursor_beg.logical_pos.y);
-                
+
                 // Check if the current logical line spans multiple visual lines.
-                let next_logical_line_start = 
+                let next_logical_line_start =
                     self.goto_line_start(cursor_beg, cursor_beg.logical_pos.y + 1);
-                
+
                 // If the start of the next logical line is visually more than 1 line away
                 // from the start of the current logical line, then the current line wrapped.
                 // Alternatively, if this is the very last logical line in the file, we must
                 // check if the total visual lines is greater than the visual start of this line + 1.
-                let spans_multiple_lines = if next_logical_line_start.logical_pos.y > cursor_beg.logical_pos.y {
+                let spans_multiple_lines = if next_logical_line_start.logical_pos.y
+                    > cursor_beg.logical_pos.y
+                {
                     next_logical_line_start.visual_pos.y > start_of_logical_line.visual_pos.y + 1
                 } else {
                     // This is the last logical line.
@@ -1920,9 +1923,10 @@ impl TextBuffer {
                 };
 
                 is_wrapped_line = spans_multiple_lines;
-                
+
                 if is_wrapped_line {
-                    sub_line_number = cursor_beg.visual_pos.y - start_of_logical_line.visual_pos.y + 1;
+                    sub_line_number =
+                        cursor_beg.visual_pos.y - start_of_logical_line.visual_pos.y + 1;
                 } else {
                     sub_line_number = 0;
                 }
@@ -1931,18 +1935,25 @@ impl TextBuffer {
             }
 
             let mut char_count_to_display = None;
-            let right_margin_width = if self.word_wrap_column > 0 && sub_line_number > 0 && is_wrapped_line {
+            let right_margin_width = if self.word_wrap_column > 0
+                && sub_line_number > 0
+                && is_wrapped_line
+            {
                 let mut width = sub_line_number.ilog10() as CoordType + 1;
                 width += 1; // space + number
-                
+
                 if sub_line_number == 1 {
-                    let start_of_logical_line = self.goto_line_start(cursor_beg, cursor_beg.logical_pos.y);
-                    let end_of_logical_line = self.cursor_move_to_logical_internal(start_of_logical_line, Point { x: COORD_TYPE_SAFE_MAX, y: start_of_logical_line.logical_pos.y });
+                    let start_of_logical_line =
+                        self.goto_line_start(cursor_beg, cursor_beg.logical_pos.y);
+                    let end_of_logical_line = self.cursor_move_to_logical_internal(
+                        start_of_logical_line,
+                        Point { x: COORD_TYPE_SAFE_MAX, y: start_of_logical_line.logical_pos.y },
+                    );
                     let char_count = end_of_logical_line.logical_pos.x;
                     char_count_to_display = Some(char_count);
                     width += 3 + char_count.max(1).ilog10() as CoordType + 1; // spaces + char_count
                 }
-                
+
                 width
             } else {
                 0
@@ -2031,7 +2042,7 @@ impl TextBuffer {
                     selection_off.end = cursor.offset;
                     selection_pos_end = cursor.visual_pos.x;
                 }
-                
+
                 if self.word_wrap_column > 0 {
                     selection_pos_end = selection_pos_end.min(self.word_wrap_column);
                 }
@@ -2254,7 +2265,8 @@ impl TextBuffer {
             if text.contains(cursor) {
                 fb.set_cursor(cursor, self.overtype);
 
-                if self.line_highlight_enabled && selection_beg >= selection_end {
+                let has_selection = selection_beg < selection_end;
+                if self.line_highlight_enabled && !has_selection {
                     let highlight_right = if self.word_wrap_column > 0 {
                         (destination.left + self.margin_width + self.word_wrap_column)
                             .min(destination.right)
@@ -2272,10 +2284,7 @@ impl TextBuffer {
                     );
                 }
 
-                // Highlight the character under the cursor with a red background,
-                // drawn after the line highlight so the red is always visible.
-                // When at end-of-line, empty line, or EOF, still show a 1-cell block.
-                {
+                if highlight_current_char {
                     let char_visual_width = if self.cursor.offset < self.text_length() {
                         let cursor_next = self.cursor_move_to_logical_internal(
                             self.cursor,
@@ -2296,7 +2305,7 @@ impl TextBuffer {
                     };
                     let char_right = (cursor.x + char_visual_width).min(text.right);
                     if cursor.x < char_right {
-                        let bg = fb.indexed(IndexedColor::BrightRed);
+                        let bg = fb.indexed(IndexedColor::Foreground);
                         let fg = fb.contrasted(bg);
                         let char_rect = Rect {
                             left: cursor.x,
@@ -2742,7 +2751,8 @@ impl TextBuffer {
     pub fn delete_to_end_of_line(&mut self, clipboard: &mut Clipboard) {
         let beg = self.cursor;
         let line = self.cursor.logical_pos.y;
-        let end = self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y: line });
+        let end =
+            self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y: line });
 
         if beg.offset == end.offset {
             return;
@@ -3224,7 +3234,10 @@ impl TextBuffer {
             // the entire buffer contents until the end to compute `self.stats.visual_lines`.
             // ALSO if newlines were added, the logical line structure changed, so we cannot safely
             // rely on the old `info.distance_next_line_start` or `info.line_height_in_rows`.
-            if deleted_count < info.distance_next_line_start && added_newlines == 0 && target.y < self.stats.logical_lines {
+            if deleted_count < info.distance_next_line_start
+                && added_newlines == 0
+                && target.y < self.stats.logical_lines
+            {
                 // Now we can measure how many more visual rows this logical line spans.
                 let next_line = self
                     .cursor_move_to_logical_internal(new_cursor, Point { x: 0, y: target.y + 1 });

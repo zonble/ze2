@@ -11,11 +11,24 @@ use crate::commands::{
     Command, CommandFocusTarget, CommandInvocation, execute_command, execute_command_invocation,
 };
 use crate::localization::*;
-use crate::settings::Settings;
+use crate::settings::{EditorColor, Settings};
 use crate::state::*;
 
 pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool) {
     let menubar_was_visible = state.menubar_visible;
+    if menubar_was_visible && ctx.keyboard_input() == Some(vk::ESCAPE) {
+        state.menubar_visible = false;
+        state.wants_menubar_focus = false;
+        if state.command_bar_active {
+            state.command_bar_focus = true;
+        } else {
+            state.wants_editor_focus = true;
+        }
+        ctx.set_input_consumed();
+        ctx.needs_rerender();
+        return;
+    }
+
     let focus_shortcut = ctx.keyboard_input().is_some_and(|key| key == vk::F10 || key == vk::F1)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::F)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::E)
@@ -201,8 +214,12 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
                 },
             );
         }
-        if ctx.menubar_menu_checkbox(loc(LocId::ViewResetWordWrapColumn), '0', vk::NULL, word_wrap_max == 0)
-        {
+        if ctx.menubar_menu_checkbox(
+            loc(LocId::ViewResetWordWrapColumn),
+            '0',
+            vk::NULL,
+            word_wrap_max == 0,
+        ) {
             execute_command_invocation(
                 ctx,
                 state,
@@ -220,6 +237,39 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
             state.wants_center_text,
         ) {
             execute_command(ctx, state, Command::CenterText);
+        }
+        if ctx.menubar_menu_checkbox(
+            loc(LocId::ViewHighlightCurrentChar),
+            'H',
+            vk::NULL,
+            state.highlight_current_char,
+        ) {
+            state.highlight_current_char = !state.highlight_current_char;
+            if let Err(err) = Settings::set_highlight_current_char(state.highlight_current_char) {
+                error_log_add(ctx, state, err);
+            }
+        }
+        if ctx.menubar_menu_checkbox(
+            loc(LocId::ViewEditorColorOriginal),
+            'O',
+            vk::NULL,
+            state.editor_color == EditorColor::Original,
+        ) {
+            state.editor_color = EditorColor::Original;
+            if let Err(err) = Settings::set_editor_color(state.editor_color) {
+                error_log_add(ctx, state, err);
+            }
+        }
+        if ctx.menubar_menu_checkbox(
+            loc(LocId::ViewEditorColorWhiteOnBlue),
+            'L',
+            vk::NULL,
+            state.editor_color == EditorColor::WhiteOnBlue,
+        ) {
+            state.editor_color = EditorColor::WhiteOnBlue;
+            if let Err(err) = Settings::set_editor_color(state.editor_color) {
+                error_log_add(ctx, state, err);
+            }
         }
     }
 

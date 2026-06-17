@@ -1123,6 +1123,21 @@ vi = "Căn giữa văn bản"
 zh-hans = "文字居中"
 zh-hant = "文字置中"
 
+[ViewHighlightCurrentChar]
+en = "Highlight Current Char"
+zh-hans = "高亮当前字元"
+zh-hant = "反白目前字元"
+
+[ViewEditorColorOriginal]
+en = "Editor Color: Original"
+zh-hans = "编辑器颜色：原始"
+zh-hant = "編輯器色彩：原始"
+
+[ViewEditorColorWhiteOnBlue]
+en = "Editor Color: White on Blue"
+zh-hans = "编辑器颜色：蓝底白字"
+zh-hant = "編輯器色彩：藍底白字"
+
 [ViewGoToFile]
 en = "Go to File…"
 ar = "الانتقال إلى ملف…"

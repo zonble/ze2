@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use crate::draw_editor::{SearchAction, search_execute, validate_goto_point};
 use crate::localization::*;
-use crate::settings::Settings;
+use crate::settings::{EditorColor, Settings};
 use crate::state::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -43,6 +43,9 @@ pub enum Command {
     SetWordWrapColumn,
     Menu,
     CenterText,
+    SetHighlightCurrentChar,
+    ToggleHighlightCurrentChar,
+    SetEditorColor,
 }
 
 pub struct CommandInvocation {
@@ -333,11 +336,33 @@ pub fn execute_command_invocation(
             state.wants_editor_focus = false;
         }
         Command::CenterText => {
-            let center_text =
-                command_bool_argument(&argument).unwrap_or(!state.wants_center_text);
+            let center_text = command_bool_argument(&argument).unwrap_or(!state.wants_center_text);
             state.wants_center_text = center_text;
             if let Err(err) = Settings::set_center_text(center_text) {
                 error_log_add(ctx, state, err);
+            }
+        }
+        Command::SetHighlightCurrentChar => {
+            if let Some(highlight_current_char) = command_bool_argument(&argument) {
+                state.highlight_current_char = highlight_current_char;
+                if let Err(err) = Settings::set_highlight_current_char(state.highlight_current_char)
+                {
+                    error_log_add(ctx, state, err);
+                }
+            }
+        }
+        Command::ToggleHighlightCurrentChar => {
+            state.highlight_current_char = !state.highlight_current_char;
+            if let Err(err) = Settings::set_highlight_current_char(state.highlight_current_char) {
+                error_log_add(ctx, state, err);
+            }
+        }
+        Command::SetEditorColor => {
+            if let Some(editor_color) = command_editor_color_argument(&argument) {
+                state.editor_color = editor_color;
+                if let Err(err) = Settings::set_editor_color(state.editor_color) {
+                    error_log_add(ctx, state, err);
+                }
             }
         }
     }
@@ -379,6 +404,14 @@ fn command_bool_argument(argument: &Option<String>) -> Option<bool> {
     match argument.as_deref()?.trim().to_ascii_lowercase().as_str() {
         "true" | "on" | "yes" | "1" => Some(true),
         "false" | "off" | "no" | "0" => Some(false),
+        _ => None,
+    }
+}
+
+fn command_editor_color_argument(argument: &Option<String>) -> Option<EditorColor> {
+    match argument.as_deref()?.trim().to_ascii_lowercase().as_str() {
+        "original" => Some(EditorColor::Original),
+        "white-on-blue" | "whiteonblue" => Some(EditorColor::WhiteOnBlue),
         _ => None,
     }
 }
@@ -504,7 +537,8 @@ fn command_from_shorthand(text: &str) -> Option<CommandInvocation> {
         });
     }
 
-    if let Some((needle, replacement)) = text.strip_prefix("s/").and_then(|text| text.split_once('/'))
+    if let Some((needle, replacement)) =
+        text.strip_prefix("s/").and_then(|text| text.split_once('/'))
         && !needle.is_empty()
     {
         return Some(CommandInvocation {
@@ -600,14 +634,19 @@ mod tests {
         ));
         assert!(matches!(
             command_from_text("quit"),
-            Some(CommandInvocation { command: Command::CloseFileAndExitIfLast, argument: None, .. })
+            Some(CommandInvocation {
+                command: Command::CloseFileAndExitIfLast,
+                argument: None,
+                ..
+            })
         ));
     }
 
     #[test]
     fn command_text_preserves_argument_tail() {
-        let Some(CommandInvocation { command: Command::OpenFile, argument: Some(argument), .. }) =
-            command_from_text("open path with spaces.txt")
+        let Some(CommandInvocation {
+            command: Command::OpenFile, argument: Some(argument), ..
+        }) = command_from_text("open path with spaces.txt")
         else {
             panic!("open command did not parse");
         };
@@ -623,6 +662,8 @@ mod tests {
             ("go-to-file src/main.rs", Command::GoToFile, "src/main.rs"),
             ("go-to-line 42", Command::Goto, "42"),
             ("word-wrap false", Command::WordWrap, "false"),
+            ("set-highlight-current-char true", Command::SetHighlightCurrentChar, "true"),
+            ("set-editor-color white-on-blue", Command::SetEditorColor, "white-on-blue"),
         ] {
             let Some(CommandInvocation { command, argument: Some(argument), focus_target }) =
                 command_from_text(text)
@@ -650,12 +691,7 @@ mod tests {
             ),
             (" / needle ", Command::Find, "needle", CommandFocusTarget::SearchPanel),
             ("s/old/new", Command::Replace, "old new", CommandFocusTarget::SearchPanel),
-            (
-                "s/old/new value",
-                Command::Replace,
-                "old new value",
-                CommandFocusTarget::SearchPanel,
-            ),
+            ("s/old/new value", Command::Replace, "old new value", CommandFocusTarget::SearchPanel),
         ] {
             let Some(CommandInvocation { command, argument: Some(argument), focus_target }) =
                 command_from_text(text)
@@ -693,6 +729,23 @@ mod tests {
     }
 
     #[test]
+    fn editor_color_arguments_accept_supported_values() {
+        assert!(
+            command_editor_color_argument(&Some("original".to_string()))
+                == Some(EditorColor::Original)
+        );
+        assert!(
+            command_editor_color_argument(&Some("white-on-blue".to_string()))
+                == Some(EditorColor::WhiteOnBlue)
+        );
+        assert!(
+            command_editor_color_argument(&Some("whiteOnBlue".to_string()))
+                == Some(EditorColor::WhiteOnBlue)
+        );
+        assert!(command_editor_color_argument(&Some("blue".to_string())).is_none());
+    }
+
+    #[test]
     fn insert_shortcuts_map_to_text_invocations() {
         for (key, expected) in [
             (kbmod::ALT | vk::COMMA, "，"),
@@ -708,8 +761,9 @@ mod tests {
             (kbmod::ALT | vk::N1, "！"),
             (kbmod::ALT | vk::EXCLAMATION, "！"),
         ] {
-            let Some(CommandInvocation { command: Command::InsertText, argument: Some(text), .. }) =
-                command_invocation_from_shortcut(key)
+            let Some(CommandInvocation {
+                command: Command::InsertText, argument: Some(text), ..
+            }) = command_invocation_from_shortcut(key)
             else {
                 panic!("insert shortcut did not parse");
             };
@@ -825,6 +879,21 @@ const COMMANDS: &[CommandDefinition] = &[
         command: Command::CenterText,
         names: &["set-center-text", "toggle-center-text", "center-text"],
         loc_id: Some(LocId::ViewCenterText),
+    },
+    CommandDefinition {
+        command: Command::SetHighlightCurrentChar,
+        names: &["set-highlight-current-char"],
+        loc_id: None,
+    },
+    CommandDefinition {
+        command: Command::ToggleHighlightCurrentChar,
+        names: &["toggle-highlight-current-char"],
+        loc_id: Some(LocId::ViewHighlightCurrentChar),
+    },
+    CommandDefinition {
+        command: Command::SetEditorColor,
+        names: &["set-editor-color"],
+        loc_id: None,
     },
     CommandDefinition {
         command: Command::About,

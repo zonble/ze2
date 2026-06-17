@@ -13,11 +13,7 @@ pub struct WordCountStatistics {
 }
 
 pub fn count_document(document: &dyn ReadableDocument, text_length: usize) -> WordCountStatistics {
-    let mut stats = WordCountStatistics {
-        all_characters: 0,
-        latin_words: 0,
-        asian_characters: 0,
-    };
+    let mut stats = WordCountStatistics { all_characters: 0, latin_words: 0, asian_characters: 0 };
     let mut in_latin_word = false;
     let mut offset = 0;
 
@@ -47,8 +43,7 @@ pub fn count_document(document: &dyn ReadableDocument, text_length: usize) -> Wo
 fn is_latin_word_character(ch: char) -> bool {
     ch.is_ascii_alphanumeric()
         || (ch.is_alphanumeric()
-            && (('\u{00c0}'..='\u{024f}').contains(&ch)
-                || ('\u{1e00}'..='\u{1eff}').contains(&ch)))
+            && (('\u{00c0}'..='\u{024f}').contains(&ch) || ('\u{1e00}'..='\u{1eff}').contains(&ch)))
 }
 
 fn is_asian_character(ch: char) -> bool {

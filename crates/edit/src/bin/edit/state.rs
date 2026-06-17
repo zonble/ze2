@@ -15,7 +15,7 @@ use edit::{buffer, icu};
 use crate::apperr;
 use crate::documents::DocumentManager;
 use crate::localization::*;
-use crate::settings::Settings;
+use crate::settings::{EditorColor, Settings};
 
 #[repr(transparent)]
 pub struct FormatApperr(apperr::Error);
@@ -159,6 +159,8 @@ pub struct State {
 
     pub wants_ruler: bool,
     pub wants_center_text: bool,
+    pub highlight_current_char: bool,
+    pub editor_color: EditorColor,
 
     pub wants_language_picker: bool,
 
@@ -198,7 +200,12 @@ pub struct State {
 
 impl State {
     pub fn new() -> apperr::Result<Self> {
-        let settings_ruler = Settings::borrow().ruler;
+        let settings = Settings::borrow();
+        let settings_ruler = settings.ruler;
+        let settings_center_text = settings.center_text;
+        let settings_highlight_current_char = settings.highlight_current_char;
+        let settings_editor_color = settings.editor_color;
+        drop(settings);
 
         Ok(Self {
             menubar_color_bg: StraightRgba::zero(),
@@ -226,7 +233,9 @@ impl State {
             search_success: true,
 
             wants_ruler: settings_ruler,
-            wants_center_text: Settings::borrow().center_text,
+            wants_center_text: settings_center_text,
+            highlight_current_char: settings_highlight_current_char,
+            editor_color: settings_editor_color,
 
             wants_language_picker: false,
 

@@ -18,6 +18,14 @@ pub struct Settings {
     pub word_wrap_column: CoordType,
     pub ruler: bool,
     pub center_text: bool,
+    pub highlight_current_char: bool,
+    pub editor_color: EditorColor,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum EditorColor {
+    Original,
+    WhiteOnBlue,
 }
 
 struct SettingsCell(SemiRefCell<Settings>);
@@ -41,6 +49,8 @@ impl Settings {
             word_wrap_column: 0,
             ruler: false,
             center_text: false,
+            highlight_current_char: false,
+            editor_color: EditorColor::Original,
         }
     }
 
@@ -117,6 +127,21 @@ impl Settings {
             self.center_text = matches!(center_text, "on" | "true");
         }
 
+        if let Some(highlight_current_char) = root.get_bool("editor.highlightCurrentChar") {
+            self.highlight_current_char = highlight_current_char;
+        } else if let Some(highlight_current_char) = root.get_str("editor.highlightCurrentChar") {
+            self.highlight_current_char = matches!(highlight_current_char, "on" | "true");
+        } else if let Some(cursor_style) = root.get_str("editor.cursorStyle") {
+            self.highlight_current_char = cursor_style == "block";
+        }
+
+        if let Some(editor_color) = root.get_str("editor.color") {
+            self.editor_color = match editor_color {
+                "whiteOnBlue" => EditorColor::WhiteOnBlue,
+                _ => EditorColor::Original,
+            };
+        }
+
         Ok(())
     }
 
@@ -147,6 +172,29 @@ impl Settings {
         let settings = &mut *SETTINGS.0.borrow_mut();
         settings.path = path;
         settings.center_text = enabled;
+        Ok(())
+    }
+
+    pub fn set_highlight_current_char(enabled: bool) -> apperr::Result<()> {
+        let path = Self::write_setting(
+            "editor.highlightCurrentChar",
+            if enabled { "true" } else { "false" },
+        )?;
+        let settings = &mut *SETTINGS.0.borrow_mut();
+        settings.path = path;
+        settings.highlight_current_char = enabled;
+        Ok(())
+    }
+
+    pub fn set_editor_color(color: EditorColor) -> apperr::Result<()> {
+        let value = match color {
+            EditorColor::Original => "\"original\"",
+            EditorColor::WhiteOnBlue => "\"whiteOnBlue\"",
+        };
+        let path = Self::write_setting("editor.color", value)?;
+        let settings = &mut *SETTINGS.0.borrow_mut();
+        settings.path = path;
+        settings.editor_color = color;
         Ok(())
     }
 

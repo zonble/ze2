@@ -11,6 +11,7 @@ use edit::tui::*;
 use stdext::string_from_utf8_lossy_owned;
 
 use crate::localization::*;
+use crate::settings::EditorColor;
 use crate::state::*;
 
 pub fn draw_editor(ctx: &mut Context, state: &mut State) {
@@ -36,7 +37,8 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
         // Compute horizontal offset for center-text mode.
         // Activates when: center_text is on, word wrap is enabled, wrap column > 0,
         // and the screen is wider than the wrap column + scrollbar.
-        let center_offset = if state.wants_center_text && word_wrap_enabled && word_wrap_column > 0 {
+        let center_offset = if state.wants_center_text && word_wrap_enabled && word_wrap_column > 0
+        {
             let screen_width = ctx.size().width;
             // +1 for the scrollbar on the right side of the textarea
             let content_width = word_wrap_column + 1;
@@ -48,7 +50,18 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
 
         let effective_wrap_column = if word_wrap_enabled { word_wrap_column } else { 0 };
 
-        ctx.textarea("textarea", doc.buffer.clone(), state.wants_ruler, effective_wrap_column, center_offset);
+        ctx.textarea(
+            "textarea",
+            doc.buffer.clone(),
+            state.wants_ruler,
+            effective_wrap_column,
+            center_offset,
+            state.highlight_current_char,
+        );
+        if state.editor_color == EditorColor::WhiteOnBlue {
+            ctx.attr_background_rgba(ctx.indexed(IndexedColor::Blue));
+            ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightWhite));
+        }
         ctx.inherit_focus();
         if ctx.context_menu_requested() {
             state.wants_menubar_focus = true;

@@ -184,7 +184,7 @@ struct CachedTextBuffer {
 /// do almost the same thing, this abstracts over the two.
 enum TextBufferPayload<'a> {
     Editline(&'a mut dyn WriteableDocument),
-    Textarea(RcTextBuffer, bool, CoordType, CoordType), // tb, show_ruler, word_wrap_column, center_offset
+    Textarea(RcTextBuffer, bool, CoordType, CoordType, bool), // tb, show_ruler, word_wrap_column, center_offset, highlight_current_char
 }
 
 /// In order for the TUI to show the correct Ctrl/Alt/Shift
@@ -1018,9 +1018,13 @@ impl Tui {
                     destination.top += 1;
                 }
 
-                if let Some(res) =
-                    tb.render(tc.scroll_offset, destination, tc.has_focus, &mut self.framebuffer)
-                {
+                if let Some(res) = tb.render(
+                    tc.scroll_offset,
+                    destination,
+                    tc.has_focus,
+                    tc.highlight_current_char,
+                    &mut self.framebuffer,
+                ) {
                     tc.scroll_offset_x_max = res.visual_pos_x_max;
                 }
 
@@ -1162,8 +1166,7 @@ impl Tui {
             let visual_lines = tb.visual_line_count();
             let right_str = format!(" {visual_lines}");
             // The right info starts just after the ruler body (wrap_col position in screen space).
-            let ruler_body_right =
-                destination.left + margin_width + (end_col - scroll_x);
+            let ruler_body_right = destination.left + margin_width + (end_col - scroll_x);
             self.framebuffer.replace_text(
                 destination.top,
                 ruler_body_right,
@@ -1175,12 +1178,8 @@ impl Tui {
         let cursor_x = tb.cursor_visual_pos().x;
         if cursor_x >= start_col && cursor_x < end_col {
             let left = destination.left + margin_width + (cursor_x - scroll_x);
-            let highlight_rect = Rect {
-                left,
-                top: destination.top,
-                right: left + 1,
-                bottom: destination.top + 1,
-            };
+            let highlight_rect =
+                Rect { left, top: destination.top, right: left + 1, bottom: destination.top + 1 };
             let bg = self.indexed(IndexedColor::White);
             let fg = self.indexed(IndexedColor::Black);
             self.framebuffer.blend_bg(highlight_rect, bg);
@@ -2302,10 +2301,17 @@ impl<'a> Context<'a, '_> {
         show_ruler: bool,
         word_wrap_column: CoordType,
         center_offset: CoordType,
+        highlight_current_char: bool,
     ) {
         self.textarea_internal(
             classname,
-            TextBufferPayload::Textarea(tb, show_ruler, word_wrap_column, center_offset),
+            TextBufferPayload::Textarea(
+                tb,
+                show_ruler,
+                word_wrap_column,
+                center_offset,
+                highlight_current_char,
+            ),
         );
     }
 
@@ -2325,7 +2331,7 @@ impl<'a> Context<'a, '_> {
 
             let cached = match buffers.iter_mut().find(|t| t.node_id == node.id) {
                 Some(cached) => {
-                    if let TextBufferPayload::Textarea(tb, _, _, _) = &payload {
+                    if let TextBufferPayload::Textarea(tb, _, _, _, _) = &payload {
                         cached.editor = tb.clone();
                     };
                     cached.seen = true;
@@ -2337,7 +2343,7 @@ impl<'a> Context<'a, '_> {
                         node_id: node.id,
                         editor: match &payload {
                             TextBufferPayload::Editline(_) => TextBuffer::new_rc(true).unwrap(),
-                            TextBufferPayload::Textarea(tb, _, _, _) => tb.clone(),
+                            TextBufferPayload::Textarea(tb, _, _, _, _) => tb.clone(),
                         },
                         seen: true,
                     });
@@ -2351,9 +2357,9 @@ impl<'a> Context<'a, '_> {
             unsafe { mem::transmute(&*cached.editor) }
         };
 
-        let (show_ruler, word_wrap_column, center_offset) = match &payload {
-            TextBufferPayload::Textarea(_, r, c, o) => (*r, *c, *o),
-            _ => (false, 0, 0),
+        let (show_ruler, word_wrap_column, center_offset, highlight_current_char) = match &payload {
+            TextBufferPayload::Textarea(_, r, c, o, s) => (*r, *c, *o, *s),
+            _ => (false, 0, 0, false),
         };
 
         node.content = NodeContent::Textarea(TextareaContent {
@@ -2368,6 +2374,7 @@ impl<'a> Context<'a, '_> {
             show_ruler,
             word_wrap_column,
             center_offset,
+            highlight_current_char,
         });
 
         let content = match node.content {
@@ -3012,10 +3019,14 @@ impl<'a> Context<'a, '_> {
             viewport_height = viewport_height.saturating_sub(1);
         }
         let cursor_y = tb.cursor_visual_pos().y;
-        
+
         // If we're in a multi-line editor and on the last line, we want to pad the scroll
         // by 1 so that the EOF marker (which is rendered below the last line) becomes visible.
-        let eof_padding = if tb.visual_line_count() > 1 && cursor_y == tb.visual_line_count() - 1 { 1 } else { 0 };
+        let eof_padding = if tb.visual_line_count() > 1 && cursor_y == tb.visual_line_count() - 1 {
+            1
+        } else {
+            0
+        };
 
         // Scroll up if the cursor is above the visible area.
         scroll_y = scroll_y.min(cursor_y);
@@ -3033,7 +3044,7 @@ impl<'a> Context<'a, '_> {
 
         scroll_x = scroll_x.min(tc.scroll_offset_x_max.max(tb.cursor_visual_pos().x) - 10);
         scroll_x = scroll_x.max(0);
-        
+
         // Clamp up to `tb.visual_line_count()` instead of `tb.visual_line_count() - 1`
         // so we can scroll far enough to reveal the EOF marker below the last line.
         scroll_y = scroll_y.clamp(0, tb.visual_line_count());
@@ -3993,6 +4004,7 @@ struct TextareaContent<'a> {
     show_ruler: bool,
     word_wrap_column: CoordType,
     center_offset: CoordType,
+    highlight_current_char: bool,
 }
 
 /// NOTE: Must not contain items that require drop().
