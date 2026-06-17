@@ -1,115 +1,44 @@
-# ![Application Icon for Edit](./assets/edit.svg) Edit
+# zonble 的 Microsoft Edit 中文寫作魔改版
 
-A simple editor for simple needs.
+這個專案基於微軟的命令列文字編輯軟體 edit 魔改，加上各種個人的中文寫作需求，以及台灣人在九零年代 DOS 時代時所習慣的復古元素。
 
-This editor pays homage to the classic [MS-DOS Editor](https://en.wikipedia.org/wiki/MS-DOS_Editor), but with a modern interface and input controls similar to VS Code. The goal is to provide an accessible editor that even users largely unfamiliar with terminals can easily use.
+## 舒適的中文寫作環境
 
-![Screenshot of Edit with the About dialog in the foreground](./assets/edit_hero_image.png)
+自從 Windows 等 GUI 作業系統在中文世界開始普及以來，中文世界的使用者，往往是在一些一開始為了西方使用者所設計的文書軟體中—其中現在較為普及的，大概屬微軟 Word、Google Docs、LibreOffice 等—撰寫。開啟這些軟體後，畫面中就會模擬一張 letter size 或是 A4 的紙張，讓使用者用 12pt 的字體寫作，相當於一行內會容納四十個中文字—以中文來說，字數太多了。
 
-## Installation
+中文用方塊字，資訊密度也高於英文，所以同樣是一行 A4 紙的寬度，一行中文的資訊量，大概會多出英文三分之一，閱讀、或是在這種軟體中寫作，往往容易變得疲勞，並且造成注意力的干擾。適合中文閱讀與寫作的環境，大約介於一行十五到三十字之間。
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/microsoft-edit.svg?exclude_unsupported=1)](https://repology.org/project/microsoft-edit/versions)
+有一些西方號稱精簡、讓人不受干擾，畫面精簡的筆記軟體（IA Writer、Typora、Obsidian 等），用在中文寫作上一樣有問題，因為這些軟體的版型，一樣是大概一行四十個中文字。
 
-You can also download binaries from [our Releases page](https://github.com/microsoft/edit/releases/latest).
+在 Word 等軟體中，可以透過修改頁面設置，變成想要的頁面寬度。但，如此一來，我們會因為想在合適的寬度中寫作，反而影響了最後的列印結果。但，寫作與文件排版可以分成兩個步驟，人們可以先在純文字軟體中寫作，專心在文字上，之後再用視覺化的文書或桌上出版軟體排版，寫作時的體驗，不必、也不該受到版面的限制。
 
-### Windows
+甚至，現在大部分的文字，並不是出現在紙張上，而是出現在各種大大小小螢幕中，可能在手機螢幕、或是三十吋螢幕上，在寫作時卻受限於 A4 大小、一行四十字的版面，更顯得沒有道理。
 
-You can install the latest version with WinGet:
-```powershell
-winget install Microsoft.Edit
-```
+說得誇張一點，我們的中文寫作體驗，可說被西方式的版型、還有排版先於寫作的軟體設計所綁架。一套可以調整換行寬度的純文字編輯器，或許是更好的寫作工具。
 
-### Linux (build from source)
+## 純文字的寫作工具
 
-If your distribution does not provide binaries, or if you'd like to build your own, you can use our install script, provided you have installed:
-* Rust (via `rustup` or similar)
-* A C compiler (e.g. `gcc`)
-* ICU (e.g. libicu78, libicu, icu)
-* curl/wget and tar
+我們可以在 VIM 或是 Emacs 等純文字編輯軟體中，像是透過 Emacs 中的 visual-fill-column 套件，修改換行（soft-wrap）寬度。
 
-The following command will then install `msedit` into `~/.local/bin`:
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/microsoft/edit/main/assets/install.sh | sh
-```
+不過，個人往往也會用這些編輯器，編輯其他種類的文字檔案，不見得都用於中文寫作，要切換到適合中文寫作的環境，往往需要來回切換，有些麻煩，而個人還有一些既有編輯器不能滿足的需求，直接有一套針對中文寫作需求的文字編輯器，也是一個可以考慮的選擇。
 
-Additional flags are `--dev`, to build directly from the main branch, and `--system` to install into `/usr/local/bin`. For instance:
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/microsoft/edit/main/assets/install.sh | sh -s -- --dev --system
-```
+微軟最近幾年重新開發的 edit ，是一套輕巧但是優異的軟體。他的定位是讓用戶可以在命令列中，快速編輯一些設定檔，並不打算做一套可以編輯各種程式的全能編輯器—這對中文寫作已經非常夠用。微軟使用現代化的 Rust 語言與相關工具開發 edit，在 Windows、macOS、Linux 等平台上都可以直接編譯，在個平台上都可以使用。微軟 edit 的 Unicode 支援比起一些編輯器也更加完整，甚至還做了中文避頭點功能。
 
-### macOS
+## 魔改
 
-You can install the latest version with Homebrew:
-```sh
-brew install msedit
-```
+在微軟 edit 的基礎上，本專案加上了以下功能：
 
-## Build Instructions
+- 換行位置：可以用選單，或是命令列上的 set-word-wrap-column 功能，選擇在幾個英文字母的寬度換行。
+- 設置換行時，可以選擇是否要在螢幕上顯示 WordStar 風格的標尺（或是 Emacs 的 ruler mode），知道換行位置
+- 中文標點：可以使用 `Alt + ,`、`Alt + .` 等快速鍵，輸入中文標點。
+- 功能命令化：在原本 edit 編輯器的下方，增加一行命令行，可以用九零年代文書軟體中的方式輸入命令。
+- 古老編輯器的快速鍵：像是 F2 存檔、F3 存檔並退出、F4 退出，符合活過九零年代的台灣人的寫作肌肉記憶。
+- 配色：採用九零年代台灣的文書軟體流行的配色。像是綠色工具列、以及藍底白字的編輯區等。
 
-* [Install Rust](https://www.rust-lang.org/tools/install)
-* Clone the repository
-* If you're using nightly Rust:
-  ```sh
-  cargo build --release --config .cargo/release.toml
-  ```
-* If you're using stable Rust:
-  * Ideally: Set the environment variable `RUSTC_BOOTSTRAP=1` and use the **nightly** build instructions above.
-    This is recommended, because it drastically reduces the binary size and slightly improves performance.
-  * Otherwise, simply run:
-    ```sh
-    cargo build --release
-    ```
+## 段落節奏調節器
 
-### Build Configuration
+這個魔改版本有一項過去各種編輯器應該都沒有的功能，就是即時顯示一個段落中有多少字，功能是—提示寫作者某一段是不是已經寫得太長，應該要考慮刪減或是分段。
 
-You can set the following environment variables at build-time to configure the build:
+個人的寫作習慣是，如果要讓文字流暢易讀，一段文字的長度會介於一百字到兩百字之間。整篇文章都是，短句會顯得鬆散，一段文字太長，也會影響閱讀，除非是要刻意創造特殊效果，才會在流暢的段落中打破框架，出現刻意的短句或長段落，創造疲倦感、或是提示可以在某個段落可以停頓閱讀。
 
-Environment variable | Description
---- | ---
-`EDIT_CFG_ICU*` | See [ICU library name (SONAME)](#icu-library-name-soname) below for details. Linux package maintainers are advised to review and configure these options.
-`EDIT_CFG_LANGUAGES` | A comma-separated list of languages to include in the build. See [i18n/edit.toml](i18n/edit.toml) for available languages.
-
-## Notes to Package Maintainers
-
-### Package Naming
-
-The canonical executable name is "edit" and the alternative name is "msedit".
-We're aware of the potential conflict of "edit" with existing commands and recommend alternatively naming packages and executables "msedit".
-Names such as "ms-edit" should be avoided.
-Assigning an "edit" alias is recommended, if possible.
-
-### ICU library name (SONAME)
-
-This project optionally depends on the ICU library for its Search and Replace functionality.
-
-By default, the project will look for the following library names:
-
- Variable | Windows | macOS | Linux / Other
-----------|---------|-------|---------------
-`EDIT_CFG_ICUUC_SONAME` | `icuuc.dll` | `libicucore.dylib` | `libicuuc.so`
-`EDIT_CFG_ICUI18N_SONAME` | `icuin.dll` | `libicucore.dylib` | `libicui18n.so`
-
-If your installation uses a different SONAME, please set the following environment variable at build time:
-* `EDIT_CFG_ICUUC_SONAME`:
-  For instance, `libicuuc.so.76`.
-* `EDIT_CFG_ICUI18N_SONAME`:
-  For instance, `libicui18n.so.76`.
-
-Additionally, this project assumes that the ICU exports symbols without `_` prefix and without version suffix, such as `u_errorName`.
-If your installation uses versioned exports, please set:
-* `EDIT_CFG_ICU_CPP_EXPORTS`:
-  If set to `true`, it'll look for C++ symbols such as `_u_errorName`.
-  Enabled by default on macOS.
-* `EDIT_CFG_ICU_RENAMING_VERSION`:
-  If set to a version number, such as `76`, it'll look for symbols such as `u_errorName_76`.
-
-Finally, you can set the following environment variables:
-* `EDIT_CFG_ICU_RENAMING_AUTO_DETECT`:
-  If set to `true`, the executable will try to detect the `EDIT_CFG_ICU_RENAMING_VERSION` value at runtime.
-  The way it does this is not officially supported by ICU and as such is not recommended to be relied upon.
-  Enabled by default on UNIX (excluding macOS) if no other options are set.
-
-To test your build settings, run `cargo test` with the `--ignored` flag. For instance:
-```sh
-cargo test -- --ignored
-```
+每一段的段落長度，會影響閱讀的節奏，這項功能，就是一個協助調整段落節奏的調節器。
