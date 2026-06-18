@@ -132,47 +132,20 @@ pub struct OscTitleFileStatus {
 }
 
 pub struct State {
+    // Document State
+    pub documents: DocumentManager,
+
+    // UI & Navigation State
     pub menubar_color_bg: StraightRgba,
     pub menubar_color_fg: StraightRgba,
     pub menubar_visible: bool,
-
-    pub documents: DocumentManager,
-
-    // A ring buffer of the last 10 errors.
-    pub error_log: [String; 10],
-    pub error_log_index: usize,
-    pub error_log_count: usize,
-
-    pub wants_file_picker: StateFilePicker,
-    pub file_picker_pending_dir: DisplayablePathBuf,
-    pub file_picker_pending_dir_revision: u64, // Bumped every time `file_picker_pending_dir` changes.
-    pub file_picker_pending_name: PathBuf,
-    pub file_picker_entries: Option<[Vec<DisplayablePathBuf>; 3]>, // ["..", directories, files]
-    pub file_picker_overwrite_warning: Option<PathBuf>,            // The path the warning is about.
-    pub file_picker_autocomplete: Vec<DisplayablePathBuf>,
-
-    pub wants_search: StateSearch,
-    pub search_needle: String,
-    pub search_replacement: String,
-    pub search_options: buffer::SearchOptions,
-    pub search_success: bool,
-
-    pub wants_ruler: bool,
-    pub wants_center_text: bool,
-    pub highlight_current_char: bool,
-    pub editor_color: EditorColor,
-
-    pub wants_language_picker: bool,
-
-    pub wants_encoding_picker: bool,
-    pub wants_encoding_change: StateEncodingChange,
-    pub encoding_picker_needle: String,
-    pub encoding_picker_results: Option<Vec<icu::Encoding>>,
-
-    pub wants_save: bool,
-    pub wants_statusbar_focus: bool,
     pub wants_menubar_focus: bool,
-    pub wants_indentation_picker: bool,
+    pub wants_statusbar_focus: bool,
+    pub wants_editor_focus: bool,
+    pub wants_ruler: bool,
+
+    // Dialog & Feature Requests
+    pub wants_save: bool,
     pub wants_go_to_file: bool,
     pub wants_about: bool,
     pub wants_word_count: bool,
@@ -181,17 +154,53 @@ pub struct State {
     pub wants_exit_after_close: bool,
     pub wants_exit: bool,
     pub wants_exit_after_save: bool,
+    pub wants_language_picker: bool,
+    pub wants_indentation_picker: bool,
     pub wants_goto: bool,
     pub goto_target: String,
     pub goto_invalid: bool,
-    pub wants_editor_focus: bool,
 
+    // Encoding & Settings
+    pub wants_encoding_picker: bool,
+    pub wants_encoding_change: StateEncodingChange,
+    pub encoding_picker_needle: String,
+    pub encoding_picker_results: Option<Vec<icu::Encoding>>,
+
+    // Editor Appearance / Settings
+    pub wants_center_text: bool,
+    pub highlight_current_char: bool,
+    pub editor_color: EditorColor,
+
+    // File Picker State
+    pub wants_file_picker: StateFilePicker,
+    pub file_picker_pending_dir: DisplayablePathBuf,
+    pub file_picker_pending_dir_revision: u64, // Bumped every time `file_picker_pending_dir` changes.
+    pub file_picker_pending_name: PathBuf,
+    pub file_picker_entries: Option<[Vec<DisplayablePathBuf>; 3]>, // ["..", directories, files]
+    pub file_picker_overwrite_warning: Option<PathBuf>,            // The path the warning is about.
+    pub file_picker_autocomplete: Vec<DisplayablePathBuf>,
+
+    // Search State
+    pub wants_search: StateSearch,
+    pub search_needle: String,
+    pub search_replacement: String,
+    pub search_options: buffer::SearchOptions,
+    pub search_success: bool,
+
+    // Command Bar State
     pub command_bar_active: bool,
     pub command_bar_focus: bool,
     pub command_bar_input: String,
     pub command_bar_error: String,
     pub command_bar_autocomplete_index: Option<usize>,
 
+    // Error Log
+    // A ring buffer of the last 10 errors.
+    pub error_log: [String; 10],
+    pub error_log_index: usize,
+    pub error_log_count: usize,
+
+    // System & Lifecycle State
     pub osc_title_file_status: OscTitleFileStatus,
     pub osc_clipboard_sync: bool,
     pub osc_clipboard_always_send: bool,
@@ -208,46 +217,20 @@ impl State {
         drop(settings);
 
         Ok(Self {
+            // Document State
+            documents: Default::default(),
+
+            // UI & Navigation State
             menubar_color_bg: StraightRgba::zero(),
             menubar_color_fg: StraightRgba::zero(),
             menubar_visible: false,
-
-            documents: Default::default(),
-
-            error_log: [const { String::new() }; 10],
-            error_log_index: 0,
-            error_log_count: 0,
-
-            wants_file_picker: StateFilePicker::None,
-            file_picker_pending_dir: Default::default(),
-            file_picker_pending_dir_revision: 0,
-            file_picker_pending_name: Default::default(),
-            file_picker_entries: None,
-            file_picker_overwrite_warning: None,
-            file_picker_autocomplete: Vec::new(),
-
-            wants_search: StateSearch { kind: StateSearchKind::Hidden, focus: false },
-            search_needle: Default::default(),
-            search_replacement: Default::default(),
-            search_options: Default::default(),
-            search_success: true,
-
-            wants_ruler: settings_ruler,
-            wants_center_text: settings_center_text,
-            highlight_current_char: settings_highlight_current_char,
-            editor_color: settings_editor_color,
-
-            wants_language_picker: false,
-
-            wants_encoding_picker: false,
-            encoding_picker_needle: Default::default(),
-            encoding_picker_results: Default::default(),
-
-            wants_save: false,
-            wants_statusbar_focus: false,
             wants_menubar_focus: false,
-            wants_encoding_change: StateEncodingChange::None,
-            wants_indentation_picker: false,
+            wants_statusbar_focus: false,
+            wants_editor_focus: false,
+            wants_ruler: settings_ruler,
+
+            // Dialog & Feature Requests
+            wants_save: false,
             wants_go_to_file: false,
             wants_about: false,
             wants_word_count: false,
@@ -256,17 +239,52 @@ impl State {
             wants_exit_after_close: false,
             wants_exit: false,
             wants_exit_after_save: false,
+            wants_language_picker: false,
+            wants_indentation_picker: false,
             wants_goto: false,
             goto_target: Default::default(),
             goto_invalid: false,
-            wants_editor_focus: false,
 
+            // Encoding & Settings
+            wants_encoding_picker: false,
+            wants_encoding_change: StateEncodingChange::None,
+            encoding_picker_needle: Default::default(),
+            encoding_picker_results: Default::default(),
+
+            // Editor Appearance / Settings
+            wants_center_text: settings_center_text,
+            highlight_current_char: settings_highlight_current_char,
+            editor_color: settings_editor_color,
+
+            // File Picker State
+            wants_file_picker: StateFilePicker::None,
+            file_picker_pending_dir: Default::default(),
+            file_picker_pending_dir_revision: 0,
+            file_picker_pending_name: Default::default(),
+            file_picker_entries: None,
+            file_picker_overwrite_warning: None,
+            file_picker_autocomplete: Vec::new(),
+
+            // Search State
+            wants_search: StateSearch { kind: StateSearchKind::Hidden, focus: false },
+            search_needle: Default::default(),
+            search_replacement: Default::default(),
+            search_options: Default::default(),
+            search_success: true,
+
+            // Command Bar State
             command_bar_active: false,
             command_bar_focus: false,
             command_bar_input: Default::default(),
             command_bar_error: Default::default(),
             command_bar_autocomplete_index: None,
 
+            // Error Log
+            error_log: [const { String::new() }; 10],
+            error_log_index: 0,
+            error_log_count: 0,
+
+            // System & Lifecycle State
             osc_title_file_status: Default::default(),
             osc_clipboard_sync: false,
             osc_clipboard_always_send: false,

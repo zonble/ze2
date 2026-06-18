@@ -58,6 +58,7 @@ pub struct CommandInvocation {
 pub enum CommandFocusTarget {
     Default,
     SearchPanel,
+    StatusBar,
 }
 
 pub struct CommandBarShortcut {
@@ -247,7 +248,13 @@ pub fn execute_command_invocation(
                 doc.buffer.borrow_mut().write_canon_smart(text.as_bytes());
             }
         }
-        Command::FocusStatusbar => state.wants_statusbar_focus = true,
+        Command::FocusStatusbar => {
+            state.wants_statusbar_focus = focus_target == CommandFocusTarget::StatusBar
+                || focus_target == CommandFocusTarget::Default;
+            if state.wants_statusbar_focus {
+                state.wants_editor_focus = false;
+            }
+        }
         Command::GoToFile => {
             if let Some(file) = command_string_argument(&argument) {
                 let path = command_path_argument(&Some(file.clone())).unwrap();
@@ -506,7 +513,11 @@ pub fn command_from_text(text: &str) -> Option<CommandInvocation> {
             return Some(CommandInvocation {
                 command: definition.command,
                 argument: None,
-                focus_target: CommandFocusTarget::Default,
+                focus_target: if definition.command == Command::FocusStatusbar {
+                    CommandFocusTarget::StatusBar
+                } else {
+                    CommandFocusTarget::Default
+                },
             });
         }
 
@@ -515,7 +526,11 @@ pub fn command_from_text(text: &str) -> Option<CommandInvocation> {
             return Some(CommandInvocation {
                 command: definition.command,
                 argument: None,
-                focus_target: CommandFocusTarget::Default,
+                focus_target: if definition.command == Command::FocusStatusbar {
+                    CommandFocusTarget::StatusBar
+                } else {
+                    CommandFocusTarget::Default
+                },
             });
         }
     }
@@ -573,7 +588,11 @@ fn command_from_text_with_argument(text: &str) -> Option<CommandInvocation> {
             return Some(CommandInvocation {
                 command: definition.command,
                 argument: Some(argument.trim().to_string()),
-                focus_target: CommandFocusTarget::Default,
+                focus_target: if definition.command == Command::FocusStatusbar {
+                    CommandFocusTarget::StatusBar
+                } else {
+                    CommandFocusTarget::Default
+                },
             });
         }
     }
@@ -638,6 +657,22 @@ mod tests {
                 command: Command::CloseFileAndExitIfLast,
                 argument: None,
                 ..
+            })
+        ));
+        assert!(matches!(
+            command_from_text("focus-statusbar"),
+            Some(CommandInvocation {
+                command: Command::FocusStatusbar,
+                argument: None,
+                focus_target: CommandFocusTarget::StatusBar,
+            })
+        ));
+        assert!(matches!(
+            command_from_text("statusbar"),
+            Some(CommandInvocation {
+                command: Command::FocusStatusbar,
+                argument: None,
+                focus_target: CommandFocusTarget::StatusBar,
             })
         ));
     }

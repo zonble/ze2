@@ -360,6 +360,42 @@ pub fn draw_dialog_word_count(ctx: &mut Context, state: &mut State) {
                 ),
             );
             ctx.label(
+                "characters-without-linebreaks-and-spaces",
+                &arena_format!(
+                    ctx.arena(),
+                    "{}: {}",
+                    loc(LocId::WordCountCharactersWithoutLinebreaksAndSpaces),
+                    stats.characters_without_linebreaks_and_spaces
+                ),
+            );
+            ctx.label(
+                "all-lines",
+                &arena_format!(
+                    ctx.arena(),
+                    "{}: {}",
+                    loc(LocId::WordCountAllLines),
+                    stats.all_lines
+                ),
+            );
+            ctx.label(
+                "empty-lines",
+                &arena_format!(
+                    ctx.arena(),
+                    "{}: {}",
+                    loc(LocId::WordCountEmptyLines),
+                    stats.empty_lines
+                ),
+            );
+            ctx.label(
+                "lines-with-text",
+                &arena_format!(
+                    ctx.arena(),
+                    "{}: {}",
+                    loc(LocId::WordCountLinesWithText),
+                    stats.lines_with_text
+                ),
+            );
+            ctx.label(
                 "latin-words",
                 &arena_format!(
                     ctx.arena(),
