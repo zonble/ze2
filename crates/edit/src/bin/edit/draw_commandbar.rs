@@ -7,10 +7,11 @@ use edit::input::vk;
 use edit::tui::*;
 
 use crate::commands::{autocomplete_commands, command_from_text, execute_command_invocation};
+use crate::localization::{LocId, loc};
 use crate::state::*;
 
 pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
-    let mut execute = false;
+    let mut should_submit_input = false;
 
     ctx.table_begin("commandbar");
     ctx.attr_focus_well();
@@ -63,8 +64,6 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
                 let fg = ctx.contrasted(bg);
 
                 let mut apply_autocomplete = false;
-                let mut execute_autocomplete = false;
-
                 // Handle keyboard navigation manually before the list takes it
                 if ctx.is_focused() {
                     if ctx.consume_shortcut(vk::DOWN) {
@@ -77,8 +76,7 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
                     } else if ctx.consume_shortcut(vk::TAB) {
                         apply_autocomplete = true;
                     } else if ctx.consume_shortcut(vk::RETURN) {
-                        apply_autocomplete = true;
-                        execute_autocomplete = true;
+                        should_submit_input = true;
                     }
                 }
 
@@ -92,10 +90,6 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
                         state.command_bar_input = suggestion.clone();
                         state.command_bar_autocomplete_index = None;
                     }
-                }
-
-                if execute_autocomplete {
-                    execute = true;
                 }
 
                 ctx.block_begin("suggestions");
@@ -151,7 +145,7 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
             state.command_bar_active = true;
 
             if ctx.consume_shortcut(vk::RETURN) {
-                execute = true;
+                should_submit_input = true;
             }
         }
 
@@ -162,17 +156,22 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
     }
     ctx.table_end();
 
-    if execute {
-        let input = state.command_bar_input.trim();
-        if let Some(invocation) = command_from_text(input) {
-            state.command_bar_input.clear();
-            state.command_bar_error.clear();
-            state.command_bar_active = false;
-            state.wants_editor_focus = true;
-            execute_command_invocation(ctx, state, invocation);
-        } else if !input.is_empty() {
-            state.command_bar_error = "Unknown command".to_string();
-            ctx.needs_rerender();
-        }
+    if should_submit_input {
+        submit_commandbar_input(ctx, state);
+    }
+}
+
+fn submit_commandbar_input(ctx: &mut Context, state: &mut State) {
+    let input = state.command_bar_input.trim();
+    if let Some(invocation) = command_from_text(input) {
+        state.command_bar_input.clear();
+        state.command_bar_error.clear();
+        state.command_bar_active = false;
+        state.wants_editor_focus = true;
+        execute_command_invocation(ctx, state, invocation);
+    } else if !input.is_empty() {
+        state.command_bar_input.clear();
+        state.command_bar_error = loc(LocId::CommandBarUnknownCommand).to_string();
+        ctx.needs_rerender();
     }
 }

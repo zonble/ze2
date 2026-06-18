@@ -33,6 +33,7 @@ pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool)
     let focus_shortcut = ctx.keyboard_input().is_some_and(|key| key == vk::F10 || key == vk::F1)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::F)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::E)
+        || menu_shortcut_selected(ctx, menubar_was_visible, vk::G)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::V)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::U)
         || menu_shortcut_selected(ctx, menubar_was_visible, vk::H);
@@ -66,6 +67,13 @@ pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool)
                 menu_shortcut_selected(ctx, menubar_was_visible, vk::E),
             ) {
                 draw_menu_edit(ctx, state);
+            }
+            if ctx.menubar_menu_begin_selected(
+                loc(LocId::Goto),
+                'G',
+                menu_shortcut_selected(ctx, menubar_was_visible, vk::G),
+            ) {
+                draw_menu_goto(ctx, state);
             }
             if ctx.menubar_menu_begin_selected(
                 loc(LocId::View),
@@ -164,6 +172,20 @@ fn draw_menu_edit(ctx: &mut Context, state: &mut State) {
     ctx.menubar_menu_end();
 }
 
+fn draw_menu_goto(ctx: &mut Context, state: &mut State) {
+    // All values on the statusbar are currently document specific.
+    if ctx.menubar_menu_button(loc(LocId::ViewFocusStatusbar), 'S', vk::NULL) {
+        execute_command(ctx, state, Command::FocusStatusbar);
+    }
+    if ctx.menubar_menu_button(loc(LocId::ViewGoToFile), 'F', kbmod::CTRL | vk::P) {
+        execute_command(ctx, state, Command::GoToFile);
+    }
+    if ctx.menubar_menu_button(loc(LocId::FileGoto), 'G', kbmod::CTRL | vk::G) {
+        execute_command(ctx, state, Command::Goto);
+    }
+    ctx.menubar_menu_end();
+}
+
 fn draw_menu_view(ctx: &mut Context, state: &mut State) {
     if let Some(doc) = state.documents.active() {
         let tb = doc.buffer.borrow();
@@ -171,16 +193,6 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
         let word_wrap_max = tb.word_wrap_max_column();
         drop(tb);
 
-        // All values on the statusbar are currently document specific.
-        if ctx.menubar_menu_button(loc(LocId::ViewFocusStatusbar), 'S', vk::NULL) {
-            execute_command(ctx, state, Command::FocusStatusbar);
-        }
-        if ctx.menubar_menu_button(loc(LocId::ViewGoToFile), 'F', kbmod::CTRL | vk::P) {
-            execute_command(ctx, state, Command::GoToFile);
-        }
-        if ctx.menubar_menu_button(loc(LocId::FileGoto), 'G', kbmod::CTRL | vk::G) {
-            execute_command(ctx, state, Command::Goto);
-        }
         if ctx.menubar_menu_checkbox(loc(LocId::ViewRuler), 'R', vk::NULL, state.wants_ruler) {
             state.wants_ruler = !state.wants_ruler;
             if let Err(err) = Settings::set_ruler(state.wants_ruler) {
@@ -305,6 +317,10 @@ pub fn draw_dialog_about(ctx: &mut Context, state: &mut State) {
         ctx.attr_padding(Rect::three(1, 2, 1));
         {
             ctx.label("description", "Microsoft Edit");
+            ctx.attr_overflow(Overflow::TruncateTail);
+            ctx.attr_position(Position::Center);
+
+            ctx.label("description", "(zonble's fork)");
             ctx.attr_overflow(Overflow::TruncateTail);
             ctx.attr_position(Position::Center);
 

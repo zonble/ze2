@@ -839,6 +839,20 @@ zh-hans = "全选"
 zh-hant = "全選"
 
 # A menu bar item
+[Goto]
+en = "Goto"
+de = "Gehe zu"
+es = "Ir a"
+fr = "Aller à"
+it = "Vai a"
+ja = "移動"
+ko = "이동"
+pt-br = "Ir para"
+ru = "Перейти"
+zh-hans = "转到"
+zh-hant = "跳至"
+
+# A menu bar item
 [View]
 en = "View"
 ar = "عرض"
@@ -2014,6 +2028,19 @@ uk = "Ця операція потребує наявності бібліоте
 vi = "Thao tác này cần thư viện ICU"
 zh-hans = "此操作需要 ICU 库"
 zh-hant = "此操作需要 ICU 程式庫"
+
+[CommandBarUnknownCommand]
+en = "Unknown command"
+de = "Unbekannter Befehl"
+es = "Comando desconocido"
+fr = "Commande inconnue"
+it = "Comando sconosciuto"
+ja = "不明なコマンド"
+ko = "알 수 없는 명령"
+pt-br = "Comando desconhecido"
+ru = "Неизвестная команда"
+zh-hans = "未知命令"
+zh-hant = "未知命令"
 
 # For input field
 [SearchNeedleLabel]
