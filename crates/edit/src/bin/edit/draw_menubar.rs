@@ -8,7 +8,8 @@ use edit::tui::*;
 use stdext::arena_format;
 
 use crate::commands::{
-    Command, CommandFocusTarget, CommandInvocation, execute_command, execute_command_invocation,
+    Command, CommandArgs, CommandFocusTarget, CommandInvocation, execute_command,
+    execute_command_invocation,
 };
 use crate::localization::*;
 use crate::settings::{EditorColor, Settings};
@@ -197,8 +198,10 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
                 state,
                 CommandInvocation {
                     command: Command::SetWordWrapColumn,
-                    argument: Some("60".into()),
-                    focus_target: CommandFocusTarget::Default,
+                    args: CommandArgs {
+                        argument: Some("60".into()),
+                        focus_target: CommandFocusTarget::Default,
+                    },
                 },
             );
         }
@@ -209,8 +212,10 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
                 state,
                 CommandInvocation {
                     command: Command::SetWordWrapColumn,
-                    argument: Some("80".into()),
-                    focus_target: CommandFocusTarget::Default,
+                    args: CommandArgs {
+                        argument: Some("80".into()),
+                        focus_target: CommandFocusTarget::Default,
+                    },
                 },
             );
         }
@@ -225,8 +230,10 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
                 state,
                 CommandInvocation {
                     command: Command::SetWordWrapColumn,
-                    argument: Some("0".into()),
-                    focus_target: CommandFocusTarget::Default,
+                    args: CommandArgs {
+                        argument: Some("0".into()),
+                        focus_target: CommandFocusTarget::Default,
+                    },
                 },
             );
         }
