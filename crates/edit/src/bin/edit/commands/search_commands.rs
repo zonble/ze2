@@ -19,6 +19,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::EditFind),
         default_focus_target: CommandFocusTarget::Default,
         handler: find,
+        argument_hint: Some("<text>"),
     },
     CommandDefinition {
         command: Command::Replace,
@@ -28,6 +29,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::EditReplace),
         default_focus_target: CommandFocusTarget::Default,
         handler: replace,
+        argument_hint: Some("<needle|replacement>"),
     },
 ];
 

@@ -116,6 +116,7 @@ pub(crate) struct CommandDefinition {
     pub loc_id: Option<LocId>,
     pub default_focus_target: CommandFocusTarget,
     pub handler: CommandHandler,
+    pub argument_hint: Option<&'static str>,
 }
 
 impl CommandDefinition {

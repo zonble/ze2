@@ -18,6 +18,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::FileNew),
         default_focus_target: CommandFocusTarget::Default,
         handler: new_file,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::OpenFile,
@@ -27,6 +28,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::FileOpen),
         default_focus_target: CommandFocusTarget::Default,
         handler: open_file,
+        argument_hint: Some("<path>"),
     },
     CommandDefinition {
         command: Command::SaveAndCloseFileAndExitIfLast,
@@ -36,6 +38,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: save_and_close_file_and_exit_if_last,
+        argument_hint: Some("<path>"),
     },
     CommandDefinition {
         command: Command::Save,
@@ -45,6 +48,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::FileSave),
         default_focus_target: CommandFocusTarget::Default,
         handler: save,
+        argument_hint: Some("<path>"),
     },
     CommandDefinition {
         command: Command::SaveAs,
@@ -54,6 +58,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::FileSaveAs),
         default_focus_target: CommandFocusTarget::Default,
         handler: save_as,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::Preferences,
@@ -63,6 +68,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::FilePreferences),
         default_focus_target: CommandFocusTarget::Default,
         handler: preferences,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::CloseFile,
@@ -72,6 +78,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::FileClose),
         default_focus_target: CommandFocusTarget::Default,
         handler: close_file,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::Exit,
@@ -81,6 +88,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::FileExit),
         default_focus_target: CommandFocusTarget::Default,
         handler: exit,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::CloseFileAndExitIfLast,
@@ -90,6 +98,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: close_file_and_exit_if_last,
+        argument_hint: None,
     },
 ];
 

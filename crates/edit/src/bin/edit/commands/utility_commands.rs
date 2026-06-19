@@ -18,6 +18,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::HelpAbout),
         default_focus_target: CommandFocusTarget::Default,
         handler: about,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::WordCount,
@@ -27,6 +28,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::UtilsWordCount),
         default_focus_target: CommandFocusTarget::Default,
         handler: word_count,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::EnableVimCommands,
@@ -36,6 +38,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: enable_vim_commands,
+        argument_hint: Some("<bool>"),
     },
     CommandDefinition {
         command: Command::EnableEmacsCommands,
@@ -45,6 +48,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: enable_emacs_commands,
+        argument_hint: Some("<bool>"),
     },
 ];
 

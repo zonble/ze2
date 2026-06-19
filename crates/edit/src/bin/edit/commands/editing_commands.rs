@@ -16,6 +16,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::EditUndo),
         default_focus_target: CommandFocusTarget::Default,
         handler: undo,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::Redo,
@@ -25,6 +26,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::EditRedo),
         default_focus_target: CommandFocusTarget::Default,
         handler: redo,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::Cut,
@@ -34,6 +36,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::EditCut),
         default_focus_target: CommandFocusTarget::Default,
         handler: cut,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::Copy,
@@ -43,6 +46,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::EditCopy),
         default_focus_target: CommandFocusTarget::Default,
         handler: copy,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::Paste,
@@ -52,6 +56,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::EditPaste),
         default_focus_target: CommandFocusTarget::Default,
         handler: paste,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::SelectAll,
@@ -61,6 +66,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::EditSelectAll),
         default_focus_target: CommandFocusTarget::Default,
         handler: select_all,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::SelectLine,
@@ -70,6 +76,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: select_line,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::InsertText,
@@ -79,6 +86,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: insert_text,
+        argument_hint: Some("<text>"),
     },
 ];
 

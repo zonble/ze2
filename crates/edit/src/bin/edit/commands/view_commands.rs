@@ -18,6 +18,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::ViewWordWrap),
         default_focus_target: CommandFocusTarget::Default,
         handler: word_wrap,
+        argument_hint: Some("<bool>"),
     },
     CommandDefinition {
         command: Command::SetWordWrapColumn,
@@ -27,6 +28,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: set_word_wrap_column,
+        argument_hint: Some("<column>"),
     },
     CommandDefinition {
         command: Command::CenterText,
@@ -36,6 +38,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::ViewCenterText),
         default_focus_target: CommandFocusTarget::Default,
         handler: center_text,
+        argument_hint: Some("<bool>"),
     },
     CommandDefinition {
         command: Command::SetHighlightCurrentChar,
@@ -45,6 +48,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: set_highlight_current_char,
+        argument_hint: Some("<bool>"),
     },
     CommandDefinition {
         command: Command::ToggleHighlightCurrentChar,
@@ -54,6 +58,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: Some(LocId::ViewHighlightCurrentChar),
         default_focus_target: CommandFocusTarget::Default,
         handler: toggle_highlight_current_char,
+        argument_hint: None,
     },
     CommandDefinition {
         command: Command::SetEditorColor,
@@ -63,6 +68,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: set_editor_color,
+        argument_hint: Some("original|white-on-blue"),
     },
 ];
 
