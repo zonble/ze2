@@ -217,7 +217,8 @@ impl State {
         let settings_highlight_current_char = settings.highlight_current_char;
         let settings_editor_color = settings.editor_color;
         let settings_command_bar_include_vim_commands = settings.command_bar_include_vim_commands;
-        let settings_command_bar_include_emacs_commands = settings.command_bar_include_emacs_commands;
+        let settings_command_bar_include_emacs_commands =
+            settings.command_bar_include_emacs_commands;
         drop(settings);
 
         Ok(Self {

@@ -80,21 +80,33 @@ pub fn autocomplete_command_suggestions_with_modes(
         return Vec::new();
     }
 
-    let mut suggestions: std::collections::BTreeMap<String, (CommandAliasSource, Option<&'static str>)> =
-        std::collections::BTreeMap::new();
+    let mut suggestions: std::collections::BTreeMap<
+        String,
+        (CommandAliasSource, Option<&'static str>),
+    > = std::collections::BTreeMap::new();
 
     for definition in command_definitions() {
         for &name in definition.names {
             let norm_name = normalize_command_name(name);
             if norm_name.starts_with(&prefix) {
-                insert_alias_suggestion(&mut suggestions, name, CommandAliasSource::Standard, definition.argument_hint);
+                insert_alias_suggestion(
+                    &mut suggestions,
+                    name,
+                    CommandAliasSource::Standard,
+                    definition.argument_hint,
+                );
             }
         }
         if include_vim_commands {
             for &name in definition.namesVim {
                 let norm_name = normalize_command_name(name);
                 if norm_name.starts_with(&prefix) {
-                    insert_alias_suggestion(&mut suggestions, name, CommandAliasSource::Vim, definition.argument_hint);
+                    insert_alias_suggestion(
+                        &mut suggestions,
+                        name,
+                        CommandAliasSource::Vim,
+                        definition.argument_hint,
+                    );
                 }
             }
         }
@@ -102,7 +114,12 @@ pub fn autocomplete_command_suggestions_with_modes(
             for &name in definition.namesEmacs {
                 let norm_name = normalize_command_name(name);
                 if norm_name.starts_with(&prefix) {
-                    insert_alias_suggestion(&mut suggestions, name, CommandAliasSource::Emacs, definition.argument_hint);
+                    insert_alias_suggestion(
+                        &mut suggestions,
+                        name,
+                        CommandAliasSource::Emacs,
+                        definition.argument_hint,
+                    );
                 }
             }
         }
@@ -110,19 +127,24 @@ pub fn autocomplete_command_suggestions_with_modes(
 
     let mut suggestions: Vec<CommandAutocompleteSuggestion> = suggestions
         .into_iter()
-        .map(|(name, (source, argument_hint))| CommandAutocompleteSuggestion { name, source, argument_hint })
+        .map(|(name, (source, argument_hint))| CommandAutocompleteSuggestion {
+            name,
+            source,
+            argument_hint,
+        })
         .collect();
     suggestions.sort_by(|a, b| {
-        a.name
-            .cmp(&b.name)
-            .then_with(|| a.source.priority().cmp(&b.source.priority()))
+        a.name.cmp(&b.name).then_with(|| a.source.priority().cmp(&b.source.priority()))
     });
     suggestions.truncate(10);
     suggestions
 }
 
 fn insert_alias_suggestion(
-    suggestions: &mut std::collections::BTreeMap<String, (CommandAliasSource, Option<&'static str>)>,
+    suggestions: &mut std::collections::BTreeMap<
+        String,
+        (CommandAliasSource, Option<&'static str>),
+    >,
     name: &str,
     source: CommandAliasSource,
     argument_hint: Option<&'static str>,
@@ -524,9 +546,13 @@ mod tests {
     #[test]
     fn autocomplete_suggestions_annotate_non_standard_aliases() {
         let suggestions_e = autocomplete_command_suggestions_with_modes("e", true, true);
-        assert!(suggestions_e.iter().any(|s| s.name == "edit" && s.display_text() == "edit <path>"));
+        assert!(
+            suggestions_e.iter().any(|s| s.name == "edit" && s.display_text() == "edit <path>")
+        );
 
         let suggestions_o = autocomplete_command_suggestions_with_modes("o", true, true);
-        assert!(suggestions_o.iter().any(|s| s.name == "o" && s.display_text() == "o <path> [vim]"));
+        assert!(
+            suggestions_o.iter().any(|s| s.name == "o" && s.display_text() == "o <path> [vim]")
+        );
     }
 }

@@ -32,16 +32,17 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
         let tb = doc.buffer.borrow();
         let word_wrap_column = tb.word_wrap_max_column();
         let word_wrap_enabled = tb.is_word_wrap_enabled();
+        let margin_width = tb.margin_width();
         drop(tb);
 
         // Compute horizontal offset for center-text mode.
         // Activates when: center_text is on, word wrap is enabled, wrap column > 0,
-        // and the screen is wider than the wrap column + scrollbar.
+        // and the screen is wider than the margin + wrap column + scrollbar.
         let center_offset = if state.wants_center_text && word_wrap_enabled && word_wrap_column > 0
         {
             let screen_width = ctx.size().width;
             // +1 for the scrollbar on the right side of the textarea
-            let content_width = word_wrap_column + 1;
+            let content_width = margin_width + word_wrap_column + 1;
             let pad = (screen_width - content_width) / 2;
             pad.max(0)
         } else {

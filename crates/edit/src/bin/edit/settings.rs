@@ -154,7 +154,8 @@ impl Settings {
 
         if let Some(include_emacs_commands) = root.get_bool("commandBar.includeEmacsCommands") {
             self.command_bar_include_emacs_commands = include_emacs_commands;
-        } else if let Some(include_emacs_commands) = root.get_str("commandBar.includeEmacsCommands") {
+        } else if let Some(include_emacs_commands) = root.get_str("commandBar.includeEmacsCommands")
+        {
             self.command_bar_include_emacs_commands =
                 matches!(include_emacs_commands, "on" | "true");
         }
