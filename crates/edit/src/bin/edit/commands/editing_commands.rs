@@ -11,6 +11,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Undo,
         names: &["undo"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::EditUndo),
         default_focus_target: CommandFocusTarget::Default,
         handler: undo,
@@ -18,6 +20,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Redo,
         names: &["redo"],
+        namesVim: &[],
+        namesEmacs: &[""],
         loc_id: Some(LocId::EditRedo),
         default_focus_target: CommandFocusTarget::Default,
         handler: redo,
@@ -25,6 +29,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Cut,
         names: &["cut"],
+        namesVim: &["delete"],
+        namesEmacs: &["kill-region"],
         loc_id: Some(LocId::EditCut),
         default_focus_target: CommandFocusTarget::Default,
         handler: cut,
@@ -32,6 +38,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Copy,
         names: &["copy"],
+        namesVim: &["yank"],
+        namesEmacs: &["kill-ring-save"],
         loc_id: Some(LocId::EditCopy),
         default_focus_target: CommandFocusTarget::Default,
         handler: copy,
@@ -39,6 +47,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Paste,
         names: &["paste"],
+        namesVim: &["put"],
+        namesEmacs: &["clipboard-yank"],
         loc_id: Some(LocId::EditPaste),
         default_focus_target: CommandFocusTarget::Default,
         handler: paste,
@@ -46,6 +56,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::SelectAll,
         names: &["select-all"],
+        namesVim: &[],
+        namesEmacs: &["mark-whole-buffer"],
         loc_id: Some(LocId::EditSelectAll),
         default_focus_target: CommandFocusTarget::Default,
         handler: select_all,
@@ -53,6 +65,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::SelectLine,
         names: &["select-line", "line"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: select_line,
@@ -60,6 +74,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::InsertText,
         names: &["insert"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: insert_text,

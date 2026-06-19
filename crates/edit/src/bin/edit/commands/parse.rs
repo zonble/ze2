@@ -4,30 +4,141 @@
 use super::{Command, CommandArgs, CommandFocusTarget, CommandInvocation, command_definitions};
 use crate::localization::loc;
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CommandAliasSource {
+    Standard,
+    Vim,
+    Emacs,
+}
+
+impl CommandAliasSource {
+    fn priority(self) -> usize {
+        match self {
+            CommandAliasSource::Standard => 0,
+            CommandAliasSource::Vim => 1,
+            CommandAliasSource::Emacs => 2,
+        }
+    }
+
+    pub fn label(self) -> Option<&'static str> {
+        match self {
+            CommandAliasSource::Standard => None,
+            CommandAliasSource::Vim => Some("vim"),
+            CommandAliasSource::Emacs => Some("emacs"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct CommandAutocompleteSuggestion {
+    pub name: String,
+    pub source: CommandAliasSource,
+}
+
+impl CommandAutocompleteSuggestion {
+    pub fn display_text(&self) -> String {
+        if let Some(label) = self.source.label() {
+            format!("{} [{}]", self.name, label)
+        } else {
+            self.name.clone()
+        }
+    }
+}
+
+#[allow(dead_code)]
 pub fn autocomplete_commands(prefix: &str) -> Vec<String> {
+    autocomplete_commands_with_modes(prefix, true, true)
+}
+
+pub fn autocomplete_commands_with_modes(
+    prefix: &str,
+    include_vim_commands: bool,
+    include_emacs_commands: bool,
+) -> Vec<String> {
+    autocomplete_command_suggestions_with_modes(
+        prefix,
+        include_vim_commands,
+        include_emacs_commands,
+    )
+    .into_iter()
+    .map(|suggestion| suggestion.name)
+    .collect()
+}
+
+pub fn autocomplete_command_suggestions_with_modes(
+    prefix: &str,
+    include_vim_commands: bool,
+    include_emacs_commands: bool,
+) -> Vec<CommandAutocompleteSuggestion> {
     let prefix = normalize_command_name(prefix);
     if prefix.is_empty() {
         return Vec::new();
     }
 
-    let mut suggestions = Vec::new();
+    let mut suggestions: std::collections::BTreeMap<String, CommandAliasSource> =
+        std::collections::BTreeMap::new();
 
     for definition in command_definitions() {
-        for name in definition.names {
+        for &name in definition.names {
             let norm_name = normalize_command_name(name);
             if norm_name.starts_with(&prefix) {
-                suggestions.push(name.to_string());
+                insert_alias_suggestion(&mut suggestions, name, CommandAliasSource::Standard);
+            }
+        }
+        if include_vim_commands {
+            for &name in definition.namesVim {
+                let norm_name = normalize_command_name(name);
+                if norm_name.starts_with(&prefix) {
+                    insert_alias_suggestion(&mut suggestions, name, CommandAliasSource::Vim);
+                }
+            }
+        }
+        if include_emacs_commands {
+            for &name in definition.namesEmacs {
+                let norm_name = normalize_command_name(name);
+                if norm_name.starts_with(&prefix) {
+                    insert_alias_suggestion(&mut suggestions, name, CommandAliasSource::Emacs);
+                }
             }
         }
     }
 
-    suggestions.sort();
-    suggestions.dedup();
+    let mut suggestions: Vec<CommandAutocompleteSuggestion> = suggestions
+        .into_iter()
+        .map(|(name, source)| CommandAutocompleteSuggestion { name, source })
+        .collect();
+    suggestions.sort_by(|a, b| {
+        a.name
+            .cmp(&b.name)
+            .then_with(|| a.source.priority().cmp(&b.source.priority()))
+    });
     suggestions.truncate(10);
     suggestions
 }
 
+fn insert_alias_suggestion(
+    suggestions: &mut std::collections::BTreeMap<String, CommandAliasSource>,
+    name: &str,
+    source: CommandAliasSource,
+) {
+    match suggestions.get(name) {
+        Some(existing) if existing.priority() <= source.priority() => {}
+        _ => {
+            suggestions.insert(name.to_string(), source);
+        }
+    }
+}
+
+#[allow(dead_code)]
 pub fn command_from_text(text: &str) -> Option<CommandInvocation> {
+    command_from_text_with_modes(text, true, true)
+}
+
+pub fn command_from_text_with_modes(
+    text: &str,
+    include_vim_commands: bool,
+    include_emacs_commands: bool,
+) -> Option<CommandInvocation> {
     if let Some(invocation) = command_from_shorthand(text) {
         return Some(invocation);
     }
@@ -38,7 +149,10 @@ pub fn command_from_text(text: &str) -> Option<CommandInvocation> {
     }
 
     for definition in command_definitions() {
-        if definition.names.iter().any(|name| normalized == normalize_command_name(name)) {
+        if definition
+            .all_names_with_modes(include_vim_commands, include_emacs_commands)
+            .any(|name| normalized == normalize_command_name(name))
+        {
             return Some(CommandInvocation {
                 command: definition.command,
                 args: CommandArgs { argument: None, focus_target: definition.default_focus_target },
@@ -54,7 +168,7 @@ pub fn command_from_text(text: &str) -> Option<CommandInvocation> {
         }
     }
 
-    command_from_text_with_argument(text)
+    command_from_text_with_argument(text, include_vim_commands, include_emacs_commands)
 }
 
 fn command_from_shorthand(text: &str) -> Option<CommandInvocation> {
@@ -96,7 +210,11 @@ fn command_from_shorthand(text: &str) -> Option<CommandInvocation> {
     })
 }
 
-fn command_from_text_with_argument(text: &str) -> Option<CommandInvocation> {
+fn command_from_text_with_argument(
+    text: &str,
+    include_vim_commands: bool,
+    include_emacs_commands: bool,
+) -> Option<CommandInvocation> {
     let text = text.trim();
     let (name, argument) = text.split_once(char::is_whitespace)?;
     let normalized = normalize_command_name(name);
@@ -105,7 +223,9 @@ fn command_from_text_with_argument(text: &str) -> Option<CommandInvocation> {
     }
 
     for definition in command_definitions() {
-        if definition.names.iter().any(|name| normalized == normalize_command_name(name))
+        if definition
+            .all_names_with_modes(include_vim_commands, include_emacs_commands)
+            .any(|name| normalized == normalize_command_name(name))
             || definition
                 .loc_id
                 .is_some_and(|loc_id| normalized == normalize_command_name(loc(loc_id)))
@@ -188,7 +308,7 @@ mod tests {
         assert!(matches!(
             command_from_text("file"),
             Some(CommandInvocation {
-                command: Command::SaveAndCloseFile,
+                command: Command::SaveAndCloseFileAndExitIfLast,
                 args: CommandArgs { argument: None, .. },
             })
         ));
@@ -214,6 +334,83 @@ mod tests {
                 args: CommandArgs { argument: None, focus_target: CommandFocusTarget::StatusBar },
             })
         ));
+        assert!(matches!(
+            command_from_text("u"),
+            Some(CommandInvocation {
+                command: Command::Undo,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("undo-redo"),
+            Some(CommandInvocation {
+                command: Command::Redo,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("delete"),
+            Some(CommandInvocation {
+                command: Command::Cut,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("kill-region"),
+            Some(CommandInvocation {
+                command: Command::Cut,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("yank"),
+            Some(CommandInvocation {
+                command: Command::Copy,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("put"),
+            Some(CommandInvocation {
+                command: Command::Paste,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("mark-whole-buffer"),
+            Some(CommandInvocation {
+                command: Command::SelectAll,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("set-wrap"),
+            Some(CommandInvocation {
+                command: Command::WordWrap,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("toggle-truncate-lines"),
+            Some(CommandInvocation {
+                command: Command::WordWrap,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("set-vim-commands-enabled"),
+            Some(CommandInvocation {
+                command: Command::EnableVimCommands,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(matches!(
+            command_from_text("set-emacs-commands-enabled"),
+            Some(CommandInvocation {
+                command: Command::EnableEmacsCommands,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
     }
 
     #[test]
@@ -237,6 +434,12 @@ mod tests {
             ("go-to-file src/main.rs", Command::GoToFile, "src/main.rs"),
             ("go-to-line 42", Command::Goto, "42"),
             ("word-wrap false", Command::WordWrap, "false"),
+            ("set-wrap true", Command::WordWrap, "true"),
+            ("visual-line-mode false", Command::WordWrap, "false"),
+            ("set-textwidth 80", Command::SetWordWrapColumn, "80"),
+            ("set-fill-column 80", Command::SetWordWrapColumn, "80"),
+            ("set-vim-commands-enabled false", Command::EnableVimCommands, "false"),
+            ("set-emacs-commands-enabled true", Command::EnableEmacsCommands, "true"),
             ("set-highlight-current-char true", Command::SetHighlightCurrentChar, "true"),
             ("set-editor-color white-on-blue", Command::SetEditorColor, "white-on-blue"),
         ] {
@@ -285,5 +488,39 @@ mod tests {
 
         assert!(command_from_text("/").is_none());
         assert!(command_from_text("s//new").is_none());
+    }
+
+    #[test]
+    fn command_text_respects_vim_emacs_mode_toggles() {
+        assert!(matches!(
+            command_from_text_with_modes("undo", false, false),
+            Some(CommandInvocation {
+                command: Command::Undo,
+                args: CommandArgs { argument: None, .. },
+            })
+        ));
+        assert!(command_from_text_with_modes("u", false, false).is_none());
+        assert!(command_from_text_with_modes("undo-redo", false, false).is_none());
+        assert!(command_from_text_with_modes("u", true, false).is_some());
+        assert!(command_from_text_with_modes("undo-redo", false, true).is_some());
+
+        let no_modes = autocomplete_commands_with_modes("set", false, false);
+        assert!(!no_modes.iter().any(|name| name == "set-wrap"));
+        assert!(!no_modes.iter().any(|name| name == "set-fill-column"));
+
+        let vim_only = autocomplete_commands_with_modes("set", true, false);
+        assert!(vim_only.iter().any(|name| name == "set-wrap"));
+
+        let emacs_only = autocomplete_commands_with_modes("set", false, true);
+        assert!(emacs_only.iter().any(|name| name == "set-fill-column"));
+    }
+
+    #[test]
+    fn autocomplete_suggestions_annotate_non_standard_aliases() {
+        let suggestions_e = autocomplete_command_suggestions_with_modes("e", true, true);
+        assert!(suggestions_e.iter().any(|s| s.name == "edit" && s.display_text() == "edit"));
+
+        let suggestions_o = autocomplete_command_suggestions_with_modes("o", true, true);
+        assert!(suggestions_o.iter().any(|s| s.name == "o" && s.display_text() == "o [vim]"));
     }
 }

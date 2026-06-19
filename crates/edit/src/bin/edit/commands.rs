@@ -19,7 +19,7 @@ mod view_commands;
 pub use definition::{
     Command, CommandArgs, CommandBarShortcut, CommandFocusTarget, CommandInvocation,
 };
-pub use parse::{autocomplete_commands, command_from_text};
+pub use parse::{autocomplete_command_suggestions_with_modes, command_from_text_with_modes};
 pub use shortcuts::{
     command_invocation_from_shortcut, commandbar_shortcut_from_key,
     should_handle_command_shortcut_before_editor,

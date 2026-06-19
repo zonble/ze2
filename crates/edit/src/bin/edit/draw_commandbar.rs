@@ -6,7 +6,10 @@ use edit::helpers::*;
 use edit::input::vk;
 use edit::tui::*;
 
-use crate::commands::{autocomplete_commands, command_from_text, execute_command_invocation};
+use crate::commands::{
+    autocomplete_command_suggestions_with_modes, command_from_text_with_modes,
+    execute_command_invocation,
+};
 use crate::localization::{LocId, loc};
 use crate::state::*;
 
@@ -46,7 +49,11 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
             let suggestions = if !state.command_bar_input.is_empty()
                 && !state.command_bar_input.contains(char::is_whitespace)
             {
-                autocomplete_commands(&state.command_bar_input)
+                autocomplete_command_suggestions_with_modes(
+                    &state.command_bar_input,
+                    state.command_bar_include_vim_commands,
+                    state.command_bar_include_emacs_commands,
+                )
             } else {
                 Vec::new()
             };
@@ -83,11 +90,11 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
                 if apply_autocomplete {
                     if let Some(idx) = state.command_bar_autocomplete_index {
                         if let Some(suggestion) = suggestions.get(idx) {
-                            state.command_bar_input = suggestion.clone();
+                            state.command_bar_input = suggestion.name.clone();
                             state.command_bar_autocomplete_index = None;
                         }
                     } else if let Some(suggestion) = suggestions.first() {
-                        state.command_bar_input = suggestion.clone();
+                        state.command_bar_input = suggestion.name.clone();
                         state.command_bar_autocomplete_index = None;
                     }
                 }
@@ -117,7 +124,8 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
                             ));
                         }
                         ctx.styled_label_add_text("  ");
-                        ctx.styled_label_add_text(suggestion);
+                        let text = suggestion.display_text();
+                        ctx.styled_label_add_text(&text);
                         ctx.styled_label_end();
                     }
                 }
@@ -163,7 +171,11 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
 
 fn submit_commandbar_input(ctx: &mut Context, state: &mut State) {
     let input = state.command_bar_input.trim();
-    if let Some(invocation) = command_from_text(input) {
+    if let Some(invocation) = command_from_text_with_modes(
+        input,
+        state.command_bar_include_vim_commands,
+        state.command_bar_include_emacs_commands,
+    ) {
         state.command_bar_input.clear();
         state.command_bar_error.clear();
         state.command_bar_active = false;

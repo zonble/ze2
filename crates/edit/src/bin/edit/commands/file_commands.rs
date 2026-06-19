@@ -13,6 +13,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::NewFile,
         names: &["new", "file-new"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::FileNew),
         default_focus_target: CommandFocusTarget::Default,
         handler: new_file,
@@ -20,20 +22,26 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::OpenFile,
         names: &["open", "file-open", "e", "edit"],
+        namesVim: &["o"],
+        namesEmacs: &["find-file"],
         loc_id: Some(LocId::FileOpen),
         default_focus_target: CommandFocusTarget::Default,
         handler: open_file,
     },
     CommandDefinition {
-        command: Command::SaveAndCloseFile,
+        command: Command::SaveAndCloseFileAndExitIfLast,
         names: &["file"],
+        namesVim: &["wq"],
+        namesEmacs: &["save-buffers-kill-emacs"],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
-        handler: save_and_close_file,
+        handler: save_and_close_file_and_exit_if_last,
     },
     CommandDefinition {
         command: Command::Save,
         names: &["save", "file-save"],
+        namesVim: &["w"],
+        namesEmacs: &["save-buffer"],
         loc_id: Some(LocId::FileSave),
         default_focus_target: CommandFocusTarget::Default,
         handler: save,
@@ -41,6 +49,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::SaveAs,
         names: &["save-as", "file-save-as"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::FileSaveAs),
         default_focus_target: CommandFocusTarget::Default,
         handler: save_as,
@@ -48,6 +58,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Preferences,
         names: &["preferences", "settings"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::FilePreferences),
         default_focus_target: CommandFocusTarget::Default,
         handler: preferences,
@@ -55,6 +67,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::CloseFile,
         names: &["close", "file-close"],
+        namesVim: &["q", "bd", "bdelete"],
+        namesEmacs: &["kill-buffer"],
         loc_id: Some(LocId::FileClose),
         default_focus_target: CommandFocusTarget::Default,
         handler: close_file,
@@ -62,6 +76,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Exit,
         names: &["exit"],
+        namesVim: &["q!", "qa!"],
+        namesEmacs: &["kill-emacs"],
         loc_id: Some(LocId::FileExit),
         default_focus_target: CommandFocusTarget::Default,
         handler: exit,
@@ -69,6 +85,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::CloseFileAndExitIfLast,
         names: &["quit"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: close_file_and_exit_if_last,
@@ -106,7 +124,7 @@ fn save_as(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
     state.wants_file_picker = StateFilePicker::SaveAs;
 }
 
-fn save_and_close_file(ctx: &mut Context, state: &mut State, args: CommandArgs) {
+fn save_and_close_file_and_exit_if_last(ctx: &mut Context, state: &mut State, args: CommandArgs) {
     let mut save_succeeded = false;
     if let Some(doc) = state.documents.active()
         && !doc.buffer.borrow().is_dirty()

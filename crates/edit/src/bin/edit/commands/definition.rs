@@ -31,7 +31,7 @@ pub enum Command {
     WordWrap,
     About,
     WordCount,
-    SaveAndCloseFile,
+    SaveAndCloseFileAndExitIfLast,
     CloseFileAndExitIfLast,
     SetWordWrapColumn,
     Menu,
@@ -39,6 +39,8 @@ pub enum Command {
     SetHighlightCurrentChar,
     ToggleHighlightCurrentChar,
     SetEditorColor,
+    EnableVimCommands,
+    EnableEmacsCommands,
 }
 
 #[cfg(test)]
@@ -67,7 +69,7 @@ impl Command {
         Command::WordWrap,
         Command::About,
         Command::WordCount,
-        Command::SaveAndCloseFile,
+        Command::SaveAndCloseFileAndExitIfLast,
         Command::CloseFileAndExitIfLast,
         Command::SetWordWrapColumn,
         Command::Menu,
@@ -75,6 +77,8 @@ impl Command {
         Command::SetHighlightCurrentChar,
         Command::ToggleHighlightCurrentChar,
         Command::SetEditorColor,
+        Command::EnableVimCommands,
+        Command::EnableEmacsCommands,
     ];
 }
 
@@ -103,12 +107,34 @@ pub struct CommandArgs {
 
 pub type CommandHandler = fn(&mut Context, &mut State, CommandArgs);
 
+#[allow(non_snake_case)]
 pub(crate) struct CommandDefinition {
     pub command: Command,
     pub names: &'static [&'static str],
+    pub namesVim: &'static [&'static str],
+    pub namesEmacs: &'static [&'static str],
     pub loc_id: Option<LocId>,
     pub default_focus_target: CommandFocusTarget,
     pub handler: CommandHandler,
+}
+
+impl CommandDefinition {
+    #[allow(dead_code)]
+    pub fn all_names(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.all_names_with_modes(true, true)
+    }
+
+    pub fn all_names_with_modes(
+        &self,
+        include_vim_commands: bool,
+        include_emacs_commands: bool,
+    ) -> impl Iterator<Item = &'static str> + '_ {
+        self.names
+            .iter()
+            .chain(self.namesVim.iter().filter(move |_| include_vim_commands))
+            .chain(self.namesEmacs.iter().filter(move |_| include_emacs_commands))
+            .copied()
+    }
 }
 
 #[cfg(test)]

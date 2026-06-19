@@ -20,6 +20,8 @@ pub struct Settings {
     pub center_text: bool,
     pub highlight_current_char: bool,
     pub editor_color: EditorColor,
+    pub command_bar_include_vim_commands: bool,
+    pub command_bar_include_emacs_commands: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -51,6 +53,8 @@ impl Settings {
             center_text: false,
             highlight_current_char: false,
             editor_color: EditorColor::Original,
+            command_bar_include_vim_commands: false,
+            command_bar_include_emacs_commands: false,
         }
     }
 
@@ -142,6 +146,19 @@ impl Settings {
             };
         }
 
+        if let Some(include_vim_commands) = root.get_bool("commandBar.includeVimCommands") {
+            self.command_bar_include_vim_commands = include_vim_commands;
+        } else if let Some(include_vim_commands) = root.get_str("commandBar.includeVimCommands") {
+            self.command_bar_include_vim_commands = matches!(include_vim_commands, "on" | "true");
+        }
+
+        if let Some(include_emacs_commands) = root.get_bool("commandBar.includeEmacsCommands") {
+            self.command_bar_include_emacs_commands = include_emacs_commands;
+        } else if let Some(include_emacs_commands) = root.get_str("commandBar.includeEmacsCommands") {
+            self.command_bar_include_emacs_commands =
+                matches!(include_emacs_commands, "on" | "true");
+        }
+
         Ok(())
     }
 
@@ -204,6 +221,28 @@ impl Settings {
         let settings = &mut *SETTINGS.0.borrow_mut();
         settings.path = path;
         settings.word_wrap_column = column;
+        Ok(())
+    }
+
+    pub fn set_command_bar_include_vim_commands(enabled: bool) -> apperr::Result<()> {
+        let path = Self::write_setting(
+            "commandBar.includeVimCommands",
+            if enabled { "true" } else { "false" },
+        )?;
+        let settings = &mut *SETTINGS.0.borrow_mut();
+        settings.path = path;
+        settings.command_bar_include_vim_commands = enabled;
+        Ok(())
+    }
+
+    pub fn set_command_bar_include_emacs_commands(enabled: bool) -> apperr::Result<()> {
+        let path = Self::write_setting(
+            "commandBar.includeEmacsCommands",
+            if enabled { "true" } else { "false" },
+        )?;
+        let settings = &mut *SETTINGS.0.borrow_mut();
+        settings.path = path;
+        settings.command_bar_include_emacs_commands = enabled;
         Ok(())
     }
 

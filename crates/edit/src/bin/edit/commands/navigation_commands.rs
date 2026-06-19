@@ -13,6 +13,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::FocusStatusbar,
         names: &["statusbar", "focus-statusbar"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::ViewFocusStatusbar),
         default_focus_target: CommandFocusTarget::StatusBar,
         handler: focus_statusbar,
@@ -20,6 +22,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::GoToFile,
         names: &["go-to-file", "file-list"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::ViewGoToFile),
         default_focus_target: CommandFocusTarget::Default,
         handler: go_to_file,
@@ -27,6 +31,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Goto,
         names: &["goto", "go-to-line", "go-to-line-column"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::FileGoto),
         default_focus_target: CommandFocusTarget::Default,
         handler: goto,
@@ -34,6 +40,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Menu,
         names: &["menu"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: menu,

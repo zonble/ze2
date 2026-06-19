@@ -193,6 +193,8 @@ pub struct State {
     pub command_bar_input: String,
     pub command_bar_error: String,
     pub command_bar_autocomplete_index: Option<usize>,
+    pub command_bar_include_vim_commands: bool,
+    pub command_bar_include_emacs_commands: bool,
 
     // Error Log
     // A ring buffer of the last 10 errors.
@@ -214,6 +216,8 @@ impl State {
         let settings_center_text = settings.center_text;
         let settings_highlight_current_char = settings.highlight_current_char;
         let settings_editor_color = settings.editor_color;
+        let settings_command_bar_include_vim_commands = settings.command_bar_include_vim_commands;
+        let settings_command_bar_include_emacs_commands = settings.command_bar_include_emacs_commands;
         drop(settings);
 
         Ok(Self {
@@ -278,6 +282,8 @@ impl State {
             command_bar_input: Default::default(),
             command_bar_error: Default::default(),
             command_bar_autocomplete_index: None,
+            command_bar_include_vim_commands: settings_command_bar_include_vim_commands,
+            command_bar_include_emacs_commands: settings_command_bar_include_emacs_commands,
 
             // Error Log
             error_log: [const { String::new() }; 10],

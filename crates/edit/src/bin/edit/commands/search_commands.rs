@@ -14,6 +14,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Find,
         names: &["find", "search"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::EditFind),
         default_focus_target: CommandFocusTarget::Default,
         handler: find,
@@ -21,6 +23,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Replace,
         names: &["replace"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::EditReplace),
         default_focus_target: CommandFocusTarget::Default,
         handler: replace,

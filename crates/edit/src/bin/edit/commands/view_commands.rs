@@ -13,6 +13,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::WordWrap,
         names: &["word-wrap", "wrap"],
+        namesVim: &["set-wrap"],
+        namesEmacs: &["toggle-truncate-lines", "visual-line-mode"],
         loc_id: Some(LocId::ViewWordWrap),
         default_focus_target: CommandFocusTarget::Default,
         handler: word_wrap,
@@ -20,6 +22,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::SetWordWrapColumn,
         names: &["set-word-wrap-column", "set-wrap-column"],
+        namesVim: &["set-textwidth"],
+        namesEmacs: &["set-fill-column"],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: set_word_wrap_column,
@@ -27,6 +31,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::CenterText,
         names: &["set-center-text", "toggle-center-text", "center-text"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::ViewCenterText),
         default_focus_target: CommandFocusTarget::Default,
         handler: center_text,
@@ -34,6 +40,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::SetHighlightCurrentChar,
         names: &["set-highlight-current-char"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: set_highlight_current_char,
@@ -41,6 +49,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::ToggleHighlightCurrentChar,
         names: &["toggle-highlight-current-char"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: Some(LocId::ViewHighlightCurrentChar),
         default_focus_target: CommandFocusTarget::Default,
         handler: toggle_highlight_current_char,
@@ -48,6 +58,8 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::SetEditorColor,
         names: &["set-editor-color"],
+        namesVim: &[],
+        namesEmacs: &[],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: set_editor_color,
