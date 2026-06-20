@@ -39,6 +39,9 @@ pub enum Command {
     SetHighlightCurrentChar,
     ToggleHighlightCurrentChar,
     SetEditorColor,
+    SetEncoding,
+    ReopenEncoding,
+    SetLineBreak,
     EnableVimCommands,
     EnableEmacsCommands,
 }
@@ -77,6 +80,9 @@ impl Command {
         Command::SetHighlightCurrentChar,
         Command::ToggleHighlightCurrentChar,
         Command::SetEditorColor,
+        Command::SetEncoding,
+        Command::ReopenEncoding,
+        Command::SetLineBreak,
         Command::EnableVimCommands,
         Command::EnableEmacsCommands,
     ];

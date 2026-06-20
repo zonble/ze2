@@ -9,6 +9,7 @@ mod arguments;
 mod definition;
 mod editing_commands;
 mod file_commands;
+mod file_format_commands;
 mod navigation_commands;
 mod parse;
 mod search_commands;
@@ -29,6 +30,7 @@ use definition::CommandDefinition;
 
 const COMMAND_GROUPS: &[&[CommandDefinition]] = &[
     file_commands::COMMANDS,
+    file_format_commands::COMMANDS,
     editing_commands::COMMANDS,
     search_commands::COMMANDS,
     navigation_commands::COMMANDS,

@@ -22,7 +22,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         command: Command::Redo,
         names: &["redo"],
         namesVim: &[],
-        namesEmacs: &[""],
+        namesEmacs: &[],
         loc_id: Some(LocId::EditRedo),
         default_focus_target: CommandFocusTarget::Default,
         handler: redo,

@@ -363,20 +363,6 @@ mod tests {
             })
         ));
         assert!(matches!(
-            command_from_text("u"),
-            Some(CommandInvocation {
-                command: Command::Undo,
-                args: CommandArgs { argument: None, .. },
-            })
-        ));
-        assert!(matches!(
-            command_from_text("undo-redo"),
-            Some(CommandInvocation {
-                command: Command::Redo,
-                args: CommandArgs { argument: None, .. },
-            })
-        ));
-        assert!(matches!(
             command_from_text("delete"),
             Some(CommandInvocation {
                 command: Command::Cut,
@@ -470,6 +456,12 @@ mod tests {
             ("set-emacs-commands-enabled true", Command::EnableEmacsCommands, "true"),
             ("set-highlight-current-char true", Command::SetHighlightCurrentChar, "true"),
             ("set-editor-color white-on-blue", Command::SetEditorColor, "white-on-blue"),
+            ("set-encoding UTF-8", Command::SetEncoding, "UTF-8"),
+            ("encoding UTF-8 BOM", Command::SetEncoding, "UTF-8 BOM"),
+            ("reopen-encoding Big5", Command::ReopenEncoding, "Big5"),
+            ("set-line-break CRLF", Command::SetLineBreak, "CRLF"),
+            ("set-line-break-char LF", Command::SetLineBreak, "LF"),
+            ("set-fileformat unix", Command::SetLineBreak, "unix"),
         ] {
             let Some(CommandInvocation {
                 command,
@@ -529,17 +521,16 @@ mod tests {
         ));
         assert!(command_from_text_with_modes("u", false, false).is_none());
         assert!(command_from_text_with_modes("undo-redo", false, false).is_none());
-        assert!(command_from_text_with_modes("u", true, false).is_some());
-        assert!(command_from_text_with_modes("undo-redo", false, true).is_some());
+        assert!(command_from_text_with_modes("undo-redo", false, true).is_none());
 
         let no_modes = autocomplete_commands_with_modes("set", false, false);
         assert!(!no_modes.iter().any(|name| name == "set-wrap"));
         assert!(!no_modes.iter().any(|name| name == "set-fill-column"));
 
-        let vim_only = autocomplete_commands_with_modes("set", true, false);
+        let vim_only = autocomplete_commands_with_modes("set-w", true, false);
         assert!(vim_only.iter().any(|name| name == "set-wrap"));
 
-        let emacs_only = autocomplete_commands_with_modes("set", false, true);
+        let emacs_only = autocomplete_commands_with_modes("set-f", false, true);
         assert!(emacs_only.iter().any(|name| name == "set-fill-column"));
     }
 

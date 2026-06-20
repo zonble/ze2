@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use edit::icu;
 use edit::path;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -53,6 +54,30 @@ pub(crate) fn command_editor_color_argument(argument: &Option<String>) -> Option
     }
 }
 
+pub(crate) fn command_encoding_argument(argument: &Option<String>) -> Option<&'static str> {
+    let argument = argument.as_deref()?.trim();
+    if argument.is_empty() {
+        return None;
+    }
+
+    for enc in icu::get_available_encodings().all {
+        if enc.canonical.eq_ignore_ascii_case(argument) || enc.label.eq_ignore_ascii_case(argument)
+        {
+            return Some(enc.canonical);
+        }
+    }
+
+    None
+}
+
+pub(crate) fn command_line_break_argument(argument: &Option<String>) -> Option<bool> {
+    match argument.as_deref()?.trim().to_ascii_lowercase().as_str() {
+        "crlf" | "cr-lf" | "dos" | "windows" => Some(true),
+        "lf" | "unix" => Some(false),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -92,5 +117,23 @@ mod tests {
                 == Some(EditorColor::WhiteOnBlue)
         );
         assert!(command_editor_color_argument(&Some("blue".to_string())).is_none());
+    }
+
+    #[test]
+    fn encoding_arguments_accept_canonical_and_label_names() {
+        assert!(command_encoding_argument(&Some("utf-8".to_string())) == Some("UTF-8"));
+        assert!(command_encoding_argument(&Some("UTF-8 BOM".to_string())) == Some("UTF-8 BOM"));
+        assert!(command_encoding_argument(&Some("not-an-encoding".to_string())).is_none());
+    }
+
+    #[test]
+    fn line_break_arguments_accept_common_values() {
+        for value in ["crlf", "cr-lf", "dos", "windows"] {
+            assert!(command_line_break_argument(&Some(value.to_string())) == Some(true));
+        }
+        for value in ["lf", "unix"] {
+            assert!(command_line_break_argument(&Some(value.to_string())) == Some(false));
+        }
+        assert!(command_line_break_argument(&Some("toggle".to_string())).is_none());
     }
 }
