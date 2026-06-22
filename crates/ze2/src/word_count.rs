@@ -32,8 +32,8 @@ pub fn count_document(document: &dyn ReadableDocument, text_length: usize) -> Wo
 
     while offset < text_length {
         let chunk = document.read_forward(offset);
-        let mut chars = Utf8Chars::new(chunk, 0);
-        while let Some(ch) = chars.next() {
+        let chars = Utf8Chars::new(chunk, 0);
+        for ch in chars {
             stats.all_characters += 1;
             stats.asian_characters += usize::from(is_asian_character(ch));
 
