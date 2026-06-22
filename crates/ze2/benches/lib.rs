@@ -7,13 +7,13 @@ use std::path::Path;
 use std::{mem, vec};
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use ze2::helpers::*;
-use ze2::{buffer, hash, json, lsh, oklab, simd, unicode};
 use stdext::arena::{self, scratch_arena};
 use stdext::collections::BVec;
 use stdext::float::parse_f64_approx;
 use stdext::glob;
 use stdext::unicode::Utf8Chars;
+use ze2::helpers::*;
+use ze2::{buffer, hash, json, lsh, oklab, simd, unicode};
 
 struct EditingTracePatch<'a>(usize, usize, &'a str);
 
