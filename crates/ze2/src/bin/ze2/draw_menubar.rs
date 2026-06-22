@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use stdext::arena_format;
 use ze2::framebuffer::IndexedColor;
 use ze2::helpers::*;
 use ze2::input::{kbmod, vk};
 use ze2::tui::*;
-use stdext::arena_format;
 
 use crate::commands::{
     Command, CommandArgs, CommandFocusTarget, CommandInvocation, execute_command,
@@ -102,11 +102,7 @@ pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool)
     state.menubar_visible = ctx.contains_focus();
 }
 
-fn menu_shortcut_selected(
-    ctx: &Context,
-    menubar_visible: bool,
-    key: ze2::input::InputKey,
-) -> bool {
+fn menu_shortcut_selected(ctx: &Context, menubar_visible: bool, key: ze2::input::InputKey) -> bool {
     ctx.matches_shortcut(kbmod::ALT | key) || (menubar_visible && ctx.matches_shortcut(key))
 }
 

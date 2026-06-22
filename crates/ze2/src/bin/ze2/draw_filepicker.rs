@@ -5,13 +5,13 @@ use std::cmp::Ordering;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use stdext::arena::scratch_arena;
+use stdext::collections::BVec;
 use ze2::framebuffer::IndexedColor;
 use ze2::helpers::*;
 use ze2::input::{kbmod, vk};
 use ze2::tui::*;
 use ze2::{icu, path};
-use stdext::arena::scratch_arena;
-use stdext::collections::BVec;
 
 use crate::localization::*;
 use crate::state::*;

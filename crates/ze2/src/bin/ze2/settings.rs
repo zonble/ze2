@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 use std::{fs, io};
 
+use stdext::arena::{read_to_string, scratch_arena};
+use stdext::arena_format;
 use ze2::buffer::TextBuffer;
 use ze2::cell::{Ref, SemiRefCell};
 use ze2::helpers::CoordType;
 use ze2::json;
 use ze2::lsh::{LANGUAGES, Language};
-use stdext::arena::{read_to_string, scratch_arena};
-use stdext::arena_format;
 
 use crate::apperr;
 

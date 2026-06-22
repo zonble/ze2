@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use ze2::sys;
 use stdext::AsciiStringHelpers as _;
 use stdext::arena::scratch_arena;
+use ze2::sys;
 
 include!(concat!(env!("OUT_DIR"), "/i18n_ze2.rs"));
 

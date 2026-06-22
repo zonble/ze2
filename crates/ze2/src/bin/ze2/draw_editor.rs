@@ -3,12 +3,12 @@
 
 use std::num::ParseIntError;
 
+use stdext::string_from_utf8_lossy_owned;
 use ze2::framebuffer::IndexedColor;
 use ze2::helpers::*;
 use ze2::icu;
 use ze2::input::{kbmod, vk};
 use ze2::tui::*;
-use stdext::string_from_utf8_lossy_owned;
 
 use crate::localization::*;
 use crate::settings::EditorColor;

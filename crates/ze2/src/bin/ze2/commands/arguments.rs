@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use ze2::icu;
-use ze2::path;
 use std::env;
 use std::path::{Path, PathBuf};
+use ze2::icu;
+use ze2::path;
 
 use crate::settings::EditorColor;
 

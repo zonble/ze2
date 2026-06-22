@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use stdext::arena::scratch_arena;
+use stdext::arena_format;
+use stdext::collections::BVec;
 use ze2::framebuffer::{Attributes, IndexedColor};
 use ze2::fuzzy::score_fuzzy;
 use ze2::helpers::*;
@@ -8,9 +11,6 @@ use ze2::icu;
 use ze2::input::vk;
 use ze2::lsh::LANGUAGES;
 use ze2::tui::*;
-use stdext::arena::scratch_arena;
-use stdext::arena_format;
-use stdext::collections::BVec;
 
 use crate::localization::*;
 use crate::state::*;

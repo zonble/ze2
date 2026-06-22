@@ -25,6 +25,12 @@ use draw_editor::*;
 use draw_filepicker::*;
 use draw_menubar::*;
 use draw_statusbar::*;
+use input_routing::*;
+use localization::*;
+use state::*;
+use stdext::arena::{self, Arena, scratch_arena};
+use stdext::arena_format;
+use stdext::collections::{BString, BVec};
 use ze2::framebuffer::{self, IndexedColor};
 use ze2::helpers::*;
 use ze2::input::{self, vk};
@@ -32,12 +38,6 @@ use ze2::oklab::StraightRgba;
 use ze2::tui::*;
 use ze2::vt::{self, Token};
 use ze2::{base64, path, sys, unicode};
-use input_routing::*;
-use localization::*;
-use state::*;
-use stdext::arena::{self, Arena, scratch_arena};
-use stdext::arena_format;
-use stdext::collections::{BString, BVec};
 
 use crate::settings::Settings;
 
