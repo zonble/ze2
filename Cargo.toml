@@ -1,5 +1,5 @@
 [workspace]
-default-members = ["crates/edit"]
+default-members = ["crates/ze2"]
 members = ["crates/*"]
 resolver = "2"
 
@@ -27,7 +27,7 @@ codegen-units = 16          # Make compiling criterion faster (16 is the default
 lto = "thin"                # Similarly, speed up linking by a ton
 
 [workspace.dependencies]
-edit = { path = "./crates/edit" }
+ze2 = { path = "./crates/ze2" }
 lsh = { path = "./crates/lsh" }
 stdext = { path = "./crates/stdext" }
 unicode-gen = { path = "./crates/unicode-gen" }

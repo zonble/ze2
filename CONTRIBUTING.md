@@ -2,7 +2,7 @@
 
 ## Translation improvements
 
-You can find our translations in [`i18n/edit.toml`](./i18n/edit.toml).
+You can find our translations in [`i18n/ze2.toml`](./i18n/ze2.toml).
 Please feel free to open a pull request with your changes at any time.
 If you'd like to discuss your changes first, please feel free to open an issue.
 
@@ -39,11 +39,11 @@ The overall architecture of the project can be summarized as follows:
 * `src/tui.rs` implements an immediate mode UI. Its module implementation gives an overview how it works and I recommend reading it.
 * `src/vt.rs` implements our VT parser.
 * `src/sys` contains our platform abstractions.
-* Finally, `src/bin/edit` ties everything together.
+* Finally, `src/bin/ze2` ties everything together.
   It's roughly 90% UI code and business logic.
   It contains a little bit of VT logic in `setup_terminal`.
 
 If you have an issue with your terminal, the places of interest are the aforementioned:
 * VT parser in `src/vt.rs`
 * Platform specific code in `src/sys`
-* And the `setup_terminal` function in `src/bin/edit/main.rs`
+* And the `setup_terminal` function in `src/bin/ze2/main.rs`

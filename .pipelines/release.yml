@@ -52,7 +52,7 @@ extends:
         Network: R1
     platform:
       name: windows_undocked
-      product: edit
+      product: ze2
     # https://aka.ms/obpipelines/cloudvault
     cloudvault:
       enabled: false
@@ -82,16 +82,16 @@ extends:
               # It will have a structure like:
               # .../vpack/
               #      - amd64/
-              #         - edit.exe
+              #         - ze2.exe
               #      - i386/
-              #         - edit.exe
+              #         - ze2.exe
               #      - arm64/
-              #         - edit.exe
+              #         - ze2.exe
               ob_createvpack_enabled: ${{parameters.createvpack}}
               ob_createvpack_vpackdirectory: "$(ob_outputDirectory)/vpack"
-              ob_createvpack_packagename: "windows_edit.$(Build.SourceBranchName)"
+              ob_createvpack_packagename: "windows_ze2.$(Build.SourceBranchName)"
               ob_createvpack_owneralias: lhecker@microsoft.com
-              ob_createvpack_description: Microsoft Edit
+              ob_createvpack_description: ze2
               ob_createvpack_targetDestinationDirectory: "$(Destination)"
               ob_createvpack_propsFile: false
               ob_createvpack_provData: true
@@ -151,7 +151,7 @@ extends:
               # Extract the version for `ob_createvpack_version`.
               - script: |-
                   @echo off
-                  for /f "tokens=3 delims=- " %%x in ('findstr /c:"version = " crates\edit\Cargo.toml') do (
+                  for /f "tokens=3 delims=- " %%x in ('findstr /c:"version = " crates\ze2\Cargo.toml') do (
                       echo ##vso[task.setvariable variable=EditVersion]%%~x
                       goto :EOF
                   )
@@ -161,7 +161,7 @@ extends:
                 inputs:
                   command: "sign"
                   signing_profile: "external_distribution"
-                  files_to_sign: "**/edit.exe"
+                  files_to_sign: "**/ze2.exe"
                   search_root: "$(ob_createvpack_vpackdirectory)"
                   use_testsign: false
                   in_container: true
@@ -173,7 +173,7 @@ extends:
                     Get-ChildItem "${env:VPACK_ROOT}\*" -Include *.exe, *.pdb | Copy-Item -Destination $Dest -Verbose
                     tar.exe -c -v --format=zip -f "$(ob_outputDirectory)\${env:RELEASE_NAME}.zip" -C _staging $env:RELEASE_NAME
                   env:
-                    RELEASE_NAME: edit-$(EditVersion)-${{ replace(platform, 'pc-windows-msvc', 'windows') }}
+                    RELEASE_NAME: ze2-$(EditVersion)-${{ replace(platform, 'pc-windows-msvc', 'windows') }}
                     ${{ if eq(platform, 'i686-pc-windows-msvc') }}:
                       VPACK_ROOT: "$(ob_createvpack_vpackdirectory)/i386"
                     ${{ elseif eq(platform, 'x86_64-pc-windows-msvc') }}:

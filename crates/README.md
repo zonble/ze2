@@ -1,8 +1,8 @@
 # crates
 
-This directory contains the crates that make up Edit and its supporting tooling.
+This directory contains the crates that make up ze2 and its supporting tooling.
 
-* `edit`: Main editor binary and library<br>
+* `ze2`: Main editor binary and library<br>
   It is split apart into a library to allow for benchmarks.
 * `lsh`: Syntax-highlighting compiler and runtime
 * `lsh-bin`: A small CLI for experimenting with and debugging LSH output

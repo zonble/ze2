@@ -2,25 +2,25 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch edit (Windows)",
+            "name": "Launch ze2 (Windows)",
             "preLaunchTask": "rust: cargo build",
             "type": "cppvsdbg",
             "request": "launch",
             "console": "externalTerminal",
-            "program": "${workspaceFolder}/target/debug/edit",
+            "program": "${workspaceFolder}/target/debug/ze2",
             "cwd": "${workspaceFolder}",
             "args": [
                 "${workspaceFolder}/assets/highlighting-tests/markdown.md"
             ],
         },
         {
-            "name": "Launch edit (GDB, Linux)",
+            "name": "Launch ze2 (GDB, Linux)",
             "preLaunchTask": "rust: cargo build",
             "type": "cppdbg",
             "request": "launch",
             "miDebuggerPath": "rust-gdb",
             "externalConsole": true,
-            "program": "${workspaceFolder}/target/debug/edit",
+            "program": "${workspaceFolder}/target/debug/ze2",
             "cwd": "${workspaceFolder}",
             "args": [
                 "${workspaceFolder}/assets/highlighting-tests/markdown.md"
@@ -33,11 +33,11 @@
             //    "lldb-dap.environment": {
             //        "LLDB_LAUNCH_FLAG_LAUNCH_IN_TTY": "YES"
             //    }
-            "name": "Launch edit (lldb-dap, macOS)",
+            "name": "Launch ze2 (lldb-dap, macOS)",
             "preLaunchTask": "rust: cargo build",
             "type": "lldb-dap",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/edit",
+            "program": "${workspaceFolder}/target/debug/ze2",
             "cwd": "${workspaceFolder}",
             "args": [
                 "${workspaceFolder}/assets/highlighting-tests/markdown.md"

@@ -1,9 +1,9 @@
-name: msedit
+name: ze2
 base: core24
 version: "2.0.0"
-summary: Edit is an MS-DOS inspired text editor from Microsoft
+summary: ze2 is an MS-DOS inspired text editor
 description: |
-  Edit pays homage to the classic MS-DOS Editor, but with a modern interface and input controls similar to VS Code. Learn more at https://github.com/microsoft/edit
+  ze2 pays homage to the classic MS-DOS Editor and PE2, but with a modern interface and input controls similar to VS Code. Learn more at https://github.com/microsoft/edit
 
   Disclaimer: This is an unofficial Snap and it is not endorsed by nor affiliated officially with Microsoft Corporation.
 
@@ -11,15 +11,16 @@ grade: stable
 confinement: strict
 
 apps:
-  msedit:
-    command: bin/edit
+  ze2:
+    command: bin/ze2
     plugs:
       - home
 
 parts:
-  edit:
-    source: https://github.com/microsoft/edit.git
+  ze2:
+    source: .
     source-type: git
     plugin: rust
+    rust-path: crates/ze2
     build-packages:
       - build-essential

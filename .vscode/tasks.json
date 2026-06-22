@@ -8,7 +8,7 @@
             "args": [
                 "build",
                 "--package",
-                "edit",
+                "ze2",
                 "--features",
                 "debug-latency"
             ],

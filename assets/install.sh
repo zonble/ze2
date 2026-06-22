@@ -151,13 +151,13 @@ log "Building"
 [ -z "$icu_renaming_version" ] || export EDIT_CFG_ICU_RENAMING_VERSION="$icu_renaming_version"
 
 if rustup component list --installed 2>/dev/null | grep -q rust-src; then
-    (cd "$srcdir" && RUSTC_BOOTSTRAP=1 cargo build -p edit --release --config .cargo/release.toml)
+    (cd "$srcdir" && RUSTC_BOOTSTRAP=1 cargo build -p ze2 --release --config .cargo/release.toml)
 else
     warn "rust-src component not found; building without size optimizations"
-    (cd "$srcdir" && cargo build -p edit --release)
+    (cd "$srcdir" && cargo build -p ze2 --release)
 fi
 
-bin="$srcdir/target/release/edit"
+bin="$srcdir/target/release/ze2"
 [ -x "$bin" ] || die "Build failed: binary not found."
 
 #### Install
@@ -172,31 +172,17 @@ fi
 
 log "Installing to $dest"
 $run mkdir -p "$dest"
-$run cp "$bin" "$dest/msedit"
-$run chmod 755 "$dest/msedit"
-if [ ! -e "$dest/edit" ] || [ "$(readlink "$dest/edit" 2>/dev/null)" = "msedit" ]; then
-    $run ln -sf msedit "$dest/edit"
-    edit_linked=1
-else
-    edit_linked=0
-fi
+$run cp "$bin" "$dest/ze2"
+$run chmod 755 "$dest/ze2"
 
 #### Summary
 
 case ":$PATH:" in
     *":$dest:"*)
-        if [ "$edit_linked" = 1 ]; then
-            echo "✅ Done. Run 'edit' or 'msedit' to start."
-        else
-            echo "✅ Done. Run 'msedit' to start."
-        fi
+        echo "✅ Done. Run 'ze2' to start."
         ;;
     *)
         echo "⚠️ Done. $dest is not in PATH; you may need to add it."
-        if [ "$edit_linked" = 1 ]; then
-            echo "Run '$dest/edit' or '$dest/msedit' to start."
-        else
-            echo "Run '$dest/msedit' to start."
-        fi
+        echo "Run '$dest/ze2' to start."
         ;;
 esac
