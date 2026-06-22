@@ -7,8 +7,8 @@ use std::path::Path;
 use std::{mem, vec};
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use edit::helpers::*;
-use edit::{buffer, hash, json, lsh, oklab, simd, unicode};
+use ze2::helpers::*;
+use ze2::{buffer, hash, json, lsh, oklab, simd, unicode};
 use stdext::arena::{self, scratch_arena};
 use stdext::collections::BVec;
 use stdext::float::parse_f64_approx;
