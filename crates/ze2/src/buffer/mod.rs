@@ -100,6 +100,20 @@ struct TextBufferSelection {
     end: Point,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum TextMarkKind {
+    Line,
+    Char,
+    Block,
+}
+
+#[derive(Copy, Clone)]
+struct TextMark {
+    kind: TextMarkKind,
+    beg: Point,
+    end: Point,
+}
+
 /// In order to group actions into a single undo step,
 /// we need to know the type of action that was performed.
 /// This stores the action type.
@@ -283,6 +297,7 @@ pub struct TextBuffer {
     // Must be cleared on every edit or reflow.
     cursor_for_rendering: Option<Cursor>,
     selection: Option<TextBufferSelection>,
+    mark: Option<TextMark>,
     selection_generation: u32,
     search: Option<UnsafeCell<ActiveSearch>>,
     highlighter_cache: HighlighterCache,
@@ -334,6 +349,7 @@ impl TextBuffer {
             cursor: Default::default(),
             cursor_for_rendering: None,
             selection: None,
+            mark: None,
             selection_generation: 0,
             search: None,
             highlighter_cache: HighlighterCache::new(),
@@ -686,6 +702,88 @@ impl TextBuffer {
 
     pub fn reflow(&mut self) {
         self.reflow_internal(true);
+    }
+
+    pub fn reflow_document(&mut self, left: CoordType, right: CoordType, paragraph: CoordType) {
+        let left = left.max(0) as usize;
+        let paragraph = paragraph.max(0) as usize;
+        let right = right.max(left as CoordType + 1).max(paragraph as CoordType + 1) as usize;
+        let mut text = String::new();
+        self.buffer.copy_into(&mut text);
+        let final_newline = text.ends_with('\n');
+        let mut lines: Vec<&str> = text.split('\n').collect();
+        if final_newline {
+            lines.pop();
+        }
+
+        let mut out = Vec::new();
+        let mut words = Vec::new();
+        for line in lines {
+            let line = line.strip_suffix('\r').unwrap_or(line);
+            if line.trim().is_empty() {
+                Self::append_reflowed_paragraph(&mut out, &words, left, right, paragraph);
+                words.clear();
+                out.push(String::new());
+            } else {
+                words.extend(line.split_whitespace());
+            }
+        }
+        Self::append_reflowed_paragraph(&mut out, &words, left, right, paragraph);
+
+        let newline = if self.newlines_are_crlf { "\r\n" } else { "\n" };
+        let mut replacement = out.join(newline);
+        if final_newline {
+            replacement.push_str(newline);
+        }
+        if replacement == text {
+            return;
+        }
+
+        let beg = self.cursor_move_to_logical_internal(self.cursor, Point::default());
+        let end = self.cursor_move_to_logical_internal(beg, Point::MAX);
+        self.edit_begin(HistoryType::Other, beg);
+        self.edit_delete(end);
+        self.edit_write(replacement.as_bytes());
+        self.edit_end();
+        self.clear_mark();
+    }
+
+    fn append_reflowed_paragraph(
+        out: &mut Vec<String>,
+        words: &[&str],
+        left: usize,
+        right: usize,
+        paragraph: usize,
+    ) {
+        if words.is_empty() {
+            return;
+        }
+        let mut line = " ".repeat(paragraph);
+        let mut width = paragraph;
+        let mut has_word = false;
+        for word in words {
+            let word_width = Self::reflow_word_width(word);
+            let sep = usize::from(has_word);
+            if has_word && width + sep + word_width > right {
+                out.push(line);
+                line = " ".repeat(left);
+                width = left;
+                has_word = false;
+            }
+            if has_word {
+                line.push(' ');
+                width += 1;
+            }
+            line.push_str(word);
+            width += word_width;
+            has_word = true;
+        }
+        out.push(line);
+    }
+
+    fn reflow_word_width(word: &str) -> usize {
+        let bytes = word.as_bytes();
+        MeasurementConfig::new(&bytes).goto_offset(bytes.len()).column as usize
     }
 
     fn recalc_after_content_changed(&mut self) {
@@ -2478,11 +2576,432 @@ impl TextBuffer {
         self.cut_copy(clipboard, false);
     }
 
+    pub fn mark(&mut self, kind: TextMarkKind) {
+        let pos = self.cursor.logical_pos;
+        self.mark = Some(match self.mark {
+            Some(mark) if mark.kind == kind => TextMark { end: pos, ..mark },
+            _ => TextMark { kind, beg: pos, end: pos },
+        });
+
+        match kind {
+            TextMarkKind::Line => {
+                let [beg, end] = minmax(self.mark.unwrap().beg.y, self.mark.unwrap().end.y);
+                self.set_selection(Some(TextBufferSelection {
+                    beg: Point { x: 0, y: beg },
+                    end: Point { x: 0, y: end + 1 },
+                }));
+            }
+            TextMarkKind::Char => {
+                let mark = self.mark.unwrap();
+                self.set_selection(Some(TextBufferSelection { beg: mark.beg, end: mark.end }));
+            }
+            TextMarkKind::Block => {
+                self.set_selection(None);
+            }
+        }
+    }
+
+    pub fn clear_mark(&mut self) {
+        self.mark = None;
+        self.set_selection(None);
+    }
+
+    pub fn copy_mark(&mut self, clipboard: &mut Clipboard) {
+        let Some(mark) = self.mark else {
+            return;
+        };
+        let text = self.extract_mark(mark);
+        if !text.is_empty() {
+            let line_copy = mark.kind == TextMarkKind::Line && text.ends_with(b"\n");
+            clipboard.write(text);
+            clipboard.write_was_line_copy(line_copy);
+        }
+    }
+
+    pub fn copy_mark_to_cursor(&mut self) {
+        let Some(mark) = self.mark else {
+            return;
+        };
+        if mark.kind == TextMarkKind::Block {
+            self.overlay_mark_at_cursor();
+            return;
+        }
+        let text = self.extract_mark(mark);
+        if !text.is_empty() {
+            self.write_raw(&text);
+        }
+    }
+
+    pub fn delete_mark(&mut self, clipboard: &mut Clipboard) {
+        let Some(mark) = self.mark else {
+            return;
+        };
+        self.copy_mark(clipboard);
+        match mark.kind {
+            TextMarkKind::Line | TextMarkKind::Char => {
+                self.delete_linear_mark(mark);
+            }
+            TextMarkKind::Block => self.delete_block_mark(mark),
+        }
+        self.clear_mark();
+    }
+
+    pub fn move_mark(&mut self, clipboard: &mut Clipboard) {
+        let Some(mark) = self.mark else {
+            return;
+        };
+        let text = self.extract_mark(mark);
+        if !text.is_empty() {
+            let line_copy = mark.kind == TextMarkKind::Line && text.ends_with(b"\n");
+            clipboard.write(text.clone());
+            clipboard.write_was_line_copy(line_copy);
+        }
+        let destination = self.destination_after_mark_delete(mark, self.cursor.logical_pos);
+        match mark.kind {
+            TextMarkKind::Line | TextMarkKind::Char => self.delete_linear_mark(mark),
+            TextMarkKind::Block => self.delete_block_mark(mark),
+        }
+        self.clear_mark();
+        if !text.is_empty() {
+            self.cursor_move_to_logical(destination);
+            if mark.kind == TextMarkKind::Block {
+                self.overlay_text(destination, &text);
+            } else {
+                self.write_raw(&text);
+            }
+        }
+    }
+
+    pub fn move_mark_to_cursor(&mut self) {
+        let Some(mark) = self.mark else {
+            return;
+        };
+        let text = self.extract_mark(mark);
+        let destination = self.destination_after_mark_delete(mark, self.cursor.logical_pos);
+        match mark.kind {
+            TextMarkKind::Line | TextMarkKind::Char => {
+                self.delete_linear_mark(mark);
+            }
+            TextMarkKind::Block => self.delete_block_mark(mark),
+        }
+        self.clear_mark();
+        if !text.is_empty() {
+            self.cursor_move_to_logical(destination);
+            if mark.kind == TextMarkKind::Block {
+                self.overlay_text(destination, &text);
+            } else {
+                self.write_raw(&text);
+            }
+        }
+    }
+
+    pub fn fill_mark(&mut self, text: &[u8]) {
+        let Some(mark) = self.mark else {
+            return;
+        };
+        // Fill repeats a single byte. A multibyte char would write only its lead
+        // byte and corrupt the buffer's UTF-8, so accept ASCII fill chars only.
+        let Some(&ch) = text.first() else {
+            return;
+        };
+        if !ch.is_ascii() {
+            return;
+        }
+        match mark.kind {
+            TextMarkKind::Line | TextMarkKind::Char => {
+                let Some((beg, end)) = self.linear_mark_range(mark) else {
+                    return;
+                };
+                let mut text = Vec::new();
+                self.buffer.extract_raw(beg.offset..end.offset, &mut text, 0);
+                let replacement = Self::filled_linear_mark_text(&text, ch);
+                self.edit_begin(HistoryType::Other, beg);
+                self.edit_delete(end);
+                self.edit_write(&replacement);
+                self.edit_end();
+            }
+            TextMarkKind::Block => self.fill_block_mark(mark, ch),
+        }
+    }
+
+    pub fn overlay_block_from_clipboard(&mut self, clipboard: &Clipboard) {
+        let data = clipboard.read();
+        if data.is_empty() {
+            return;
+        }
+        self.overlay_text(self.cursor.logical_pos, data);
+    }
+
+    pub fn overlay_mark_at_cursor(&mut self) {
+        let Some(mark) = self.mark else {
+            return;
+        };
+        let text = self.extract_block_mark(mark);
+        if text.is_empty() {
+            return;
+        }
+        self.overlay_text(self.cursor.logical_pos, &text);
+    }
+
+    fn overlay_text(&mut self, start: Point, text: &[u8]) {
+        self.edit_begin_grouping();
+        // enumerate() before skipping empties: a blank source row still occupies a
+        // row, so its index must advance `y`. Filtering first renumbered the rows.
+        for (row, line) in text.split(|&b| b == b'\n').enumerate() {
+            let line = unicode::strip_newline(line);
+            if line.is_empty() {
+                continue;
+            }
+            let y = start.y + row as CoordType;
+            self.ensure_logical_line(y);
+            self.ensure_logical_column(y, start.x);
+            // End column is grapheme width, not byte length: a multibyte char is one
+            // column, so `line.len()` would overshoot and clobber adjacent text.
+            let cols = MeasurementConfig::new(&line).goto_offset(line.len()).logical_pos.x;
+            self.replace_logical_range(
+                Point { x: start.x, y },
+                Point { x: start.x + cols, y },
+                line,
+            );
+        }
+        self.edit_end_grouping();
+    }
+
+    fn filled_linear_mark_text(text: &[u8], ch: u8) -> Vec<u8> {
+        let mut replacement = Vec::with_capacity(text.len());
+        let mut segment_start = 0;
+        for (idx, byte) in text.iter().enumerate() {
+            if matches!(*byte, b'\r' | b'\n') {
+                Self::append_filled_segment(&mut replacement, &text[segment_start..idx], ch);
+                replacement.push(*byte);
+                segment_start = idx + 1;
+            }
+        }
+        Self::append_filled_segment(&mut replacement, &text[segment_start..], ch);
+        replacement
+    }
+
+    fn append_filled_segment(replacement: &mut Vec<u8>, segment: &[u8], ch: u8) {
+        let count = MeasurementConfig::new(&segment).goto_offset(segment.len()).logical_pos.x;
+        replacement.resize(replacement.len() + count as usize, ch);
+    }
+
+    fn ensure_logical_line(&mut self, y: CoordType) {
+        while y >= self.stats.logical_lines {
+            let end = self.cursor_move_to_logical_internal(self.cursor, Point::MAX);
+            self.edit_begin(HistoryType::Other, end);
+            self.edit_write(if self.newlines_are_crlf { b"\r\n" } else { b"\n" });
+            self.edit_end();
+        }
+    }
+
+    fn ensure_logical_column(&mut self, y: CoordType, x: CoordType) {
+        let end = self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y });
+        if end.logical_pos.x >= x {
+            return;
+        }
+        let spaces = vec![b' '; (x - end.logical_pos.x) as usize];
+        self.edit_begin(HistoryType::Other, end);
+        self.edit_write(&spaces);
+        self.edit_end();
+    }
+
+    pub fn shift_block_mark(&mut self, right: bool) {
+        let Some(mark) = self.mark.filter(|m| m.kind == TextMarkKind::Block) else {
+            self.indent_change(if right { 1 } else { -1 });
+            return;
+        };
+        let rect = self.block_rect(mark);
+        self.edit_begin_grouping();
+        if right {
+            for y in rect.top..rect.bottom {
+                self.replace_logical_range(
+                    Point { x: rect.left, y },
+                    Point { x: rect.left, y },
+                    b" ",
+                );
+            }
+        } else if rect.left > 0 {
+            for y in rect.top..rect.bottom {
+                let beg = Point { x: rect.left - 1, y };
+                let end = Point { x: rect.left, y };
+                if self.logical_range_is_blank(beg, end) {
+                    self.replace_logical_range(beg, end, b"");
+                }
+            }
+        }
+        self.edit_end_grouping();
+    }
+
+    fn destination_after_mark_delete(&self, mark: TextMark, mut destination: Point) -> Point {
+        match mark.kind {
+            TextMarkKind::Line => {
+                let [top, bottom] = minmax(mark.beg.y, mark.end.y);
+                if destination.y > bottom {
+                    destination.y -= bottom - top + 1;
+                } else if destination.y >= top {
+                    destination = Point { x: 0, y: top };
+                }
+            }
+            TextMarkKind::Char => {
+                let [beg, end] = minmax(mark.beg, mark.end);
+                if beg.y == end.y {
+                    if destination.y == beg.y && destination.x > end.x {
+                        destination.x -= end.x - beg.x;
+                    } else if destination.y == beg.y && destination.x >= beg.x {
+                        destination = beg;
+                    }
+                } else if destination >= beg && destination <= end {
+                    destination = beg;
+                } else if destination.y == end.y && destination.x > end.x {
+                    destination = Point { x: beg.x + destination.x - end.x, y: beg.y };
+                } else if destination.y > end.y {
+                    destination.y -= end.y - beg.y;
+                }
+            }
+            TextMarkKind::Block => {
+                let rect = self.block_rect(mark);
+                if destination.y >= rect.top && destination.y < rect.bottom {
+                    if destination.x > rect.right {
+                        destination.x -= rect.width();
+                    } else if destination.x >= rect.left {
+                        destination.x = rect.left;
+                    }
+                }
+            }
+        }
+        destination
+    }
+
     fn cut_copy(&mut self, clipboard: &mut Clipboard, cut: bool) {
         let line_copy = !self.has_selection();
         let selection = self.extract_selection(cut);
         clipboard.write(selection);
         clipboard.write_was_line_copy(line_copy);
+    }
+
+    fn linear_mark_range(&self, mark: TextMark) -> Option<(Cursor, Cursor)> {
+        let (beg, end) = match mark.kind {
+            TextMarkKind::Line => {
+                let [beg, end] = minmax(mark.beg.y, mark.end.y);
+                (Point { x: 0, y: beg }, Point { x: 0, y: end + 1 })
+            }
+            TextMarkKind::Char => {
+                let [beg, end] = minmax(mark.beg, mark.end);
+                (beg, end)
+            }
+            TextMarkKind::Block => return None,
+        };
+
+        let beg = self.cursor_move_to_logical_internal(self.cursor, beg);
+        let end = self.cursor_move_to_logical_internal(beg, end);
+        (beg.offset < end.offset).then_some((beg, end))
+    }
+
+    fn extract_mark(&self, mark: TextMark) -> Vec<u8> {
+        match mark.kind {
+            TextMarkKind::Line | TextMarkKind::Char => {
+                let Some((beg, end)) = self.linear_mark_range(mark) else {
+                    return Vec::new();
+                };
+                let mut out = Vec::new();
+                self.buffer.extract_raw(beg.offset..end.offset, &mut out, 0);
+                out
+            }
+            TextMarkKind::Block => self.extract_block_mark(mark),
+        }
+    }
+
+    fn delete_linear_mark(&mut self, mark: TextMark) {
+        let Some((mut beg, end)) = self.linear_mark_range(mark) else {
+            return;
+        };
+        if mark.kind == TextMarkKind::Line
+            && mark.beg.y.max(mark.end.y) >= self.stats.logical_lines - 1
+            && end.offset == self.text_length()
+            && beg.logical_pos.y > 0
+        {
+            beg = self.cursor_move_to_logical_internal(
+                self.cursor,
+                Point { x: CoordType::MAX, y: beg.logical_pos.y - 1 },
+            );
+        }
+        self.edit_begin(HistoryType::Delete, beg);
+        self.edit_delete(end);
+        self.edit_end();
+    }
+
+    fn block_rect(&self, mark: TextMark) -> Rect {
+        Rect {
+            left: mark.beg.x.min(mark.end.x),
+            top: mark.beg.y.min(mark.end.y),
+            right: mark.beg.x.max(mark.end.x) + 1,
+            bottom: mark.beg.y.max(mark.end.y) + 1,
+        }
+    }
+
+    fn extract_block_mark(&self, mark: TextMark) -> Vec<u8> {
+        let rect = self.block_rect(mark);
+        if rect.is_empty() {
+            return Vec::new();
+        }
+
+        let mut out = Vec::new();
+        for y in rect.top..rect.bottom {
+            if y > rect.top {
+                out.push(b'\n');
+            }
+            let beg = self.cursor_move_to_logical_internal(self.cursor, Point { x: rect.left, y });
+            let end = self.cursor_move_to_logical_internal(beg, Point { x: rect.right, y });
+            self.buffer.extract_raw(beg.offset..end.offset, &mut out, usize::MAX);
+        }
+        out
+    }
+
+    fn delete_block_mark(&mut self, mark: TextMark) {
+        let rect = self.block_rect(mark);
+        self.edit_begin_grouping();
+        for y in (rect.top..rect.bottom).rev() {
+            self.replace_logical_range(Point { x: rect.left, y }, Point { x: rect.right, y }, b"");
+        }
+        self.edit_end_grouping();
+    }
+
+    fn fill_block_mark(&mut self, mark: TextMark, ch: u8) {
+        let rect = self.block_rect(mark);
+        let fill = vec![ch; rect.width() as usize];
+        self.edit_begin_grouping();
+        for y in rect.top..rect.bottom {
+            self.replace_logical_range(
+                Point { x: rect.left, y },
+                Point { x: rect.right, y },
+                &fill,
+            );
+        }
+        self.edit_end_grouping();
+    }
+
+    fn replace_logical_range(&mut self, beg: Point, end: Point, text: &[u8]) {
+        let beg = self.cursor_move_to_logical_internal(self.cursor, beg);
+        let end = self.cursor_move_to_logical_internal(beg, end);
+        if beg.offset == end.offset && text.is_empty() {
+            return;
+        }
+        self.edit_begin(HistoryType::Other, beg);
+        self.edit_delete(end);
+        self.edit_write(text);
+        self.edit_end();
+    }
+
+    fn logical_range_is_blank(&self, beg: Point, end: Point) -> bool {
+        let beg = self.cursor_move_to_logical_internal(self.cursor, beg);
+        let end = self.cursor_move_to_logical_internal(beg, end);
+        if beg.offset == end.offset {
+            return false;
+        }
+        let mut text = Vec::new();
+        self.buffer.extract_raw(beg.offset..end.offset, &mut text, 0);
+        text.iter().all(|ch| matches!(ch, b' ' | b'\t'))
     }
 
     pub fn paste(&mut self, clipboard: &Clipboard, single_line: bool) {
@@ -2816,6 +3335,66 @@ impl TextBuffer {
         self.edit_end();
 
         self.set_selection(None);
+    }
+
+    /// Inserts a blank line below the current logical line.
+    pub fn insert_line_below(&mut self) {
+        let line = self.cursor.logical_pos.y;
+        let at =
+            self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y: line });
+        unsafe { self.set_cursor(at) };
+        self.write_raw(if self.newlines_are_crlf { b"\r\n" } else { b"\n" });
+        self.cursor_move_to_logical(Point { x: 0, y: at.logical_pos.y + 1 });
+    }
+
+    /// Splits the current line at the cursor.
+    pub fn split_line(&mut self) {
+        self.write_raw(if self.newlines_are_crlf { b"\r\n" } else { b"\n" });
+    }
+
+    pub fn cursor_move_to_first_nonblank(&mut self) {
+        self.cursor_move_to_logical(self.indent_end_logical_pos());
+    }
+
+    pub fn cursor_move_to_begin_word(&mut self) {
+        self.cursor_move_to_offset(navigation::word_backward(&self.buffer, self.cursor.offset));
+    }
+
+    pub fn cursor_move_to_end_word(&mut self) {
+        self.cursor_move_to_offset(navigation::word_forward(&self.buffer, self.cursor.offset));
+    }
+
+    pub fn current_char(&self) -> Option<char> {
+        if self.cursor.offset >= self.text_length() {
+            return None;
+        }
+        // read_forward never splits a grapheme across chunks, so the first scalar
+        // at the cursor is whole. Decode it instead of returning a lone byte.
+        Utf8Chars::new(self.read_forward(self.cursor.offset), 0).next()
+    }
+
+    pub fn current_line_text(&self) -> Vec<u8> {
+        let y = self.cursor.logical_pos.y;
+        let beg = self.cursor_move_to_logical_internal(self.cursor, Point { x: 0, y });
+        let end = self.cursor_move_to_logical_internal(beg, Point { x: CoordType::MAX, y });
+        let mut text = Vec::new();
+        self.buffer.extract_raw(beg.offset..end.offset, &mut text, 0);
+        text
+    }
+
+    pub fn change_ascii_case(&mut self, uppercase: bool) {
+        let Some((beg, end)) = self.selection_range_internal(false) else {
+            return;
+        };
+        let mut text = Vec::new();
+        self.buffer.extract_raw(beg.offset..end.offset, &mut text, 0);
+        for ch in &mut text {
+            *ch = if uppercase { ch.to_ascii_uppercase() } else { ch.to_ascii_lowercase() };
+        }
+        self.edit_begin(HistoryType::Other, beg);
+        self.edit_delete(end);
+        self.edit_write(&text);
+        self.edit_end();
     }
 
     /// Returns the logical position of the first character on this line.
@@ -3450,7 +4029,9 @@ fn detect_bom(bytes: &[u8]) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{SearchOptions, TextBuffer};
+    use super::{SearchOptions, TextBuffer, TextMarkKind};
+    use crate::clipboard::Clipboard;
+    use crate::helpers::Point;
 
     fn buffer_contents(buf: &mut TextBuffer) -> String {
         let mut str = String::new();
@@ -3532,6 +4113,157 @@ mod tests {
         buf.join_next_line();
 
         assert_eq!(buffer_contents(&mut buf), "abc");
+    }
+
+    #[test]
+    fn fill_mark_replaces_multibyte_char_once() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw("ae\u{301}b".as_bytes());
+        buf.cursor_move_to_logical(Point { x: 1, y: 0 });
+        buf.mark(TextMarkKind::Char);
+        buf.cursor_move_to_logical(Point { x: 2, y: 0 });
+        buf.mark(TextMarkKind::Char);
+
+        buf.fill_mark(b"x");
+
+        assert_eq!(buffer_contents(&mut buf), "axb");
+    }
+
+    #[test]
+    fn overlay_block_from_clipboard_works_after_delete_clears_mark() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        let mut clipboard = Clipboard::default();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"abcd\nefgh\nijkl");
+        buf.cursor_move_to_logical(Point { x: 1, y: 0 });
+        buf.mark(TextMarkKind::Block);
+        buf.cursor_move_to_logical(Point { x: 2, y: 1 });
+        buf.mark(TextMarkKind::Block);
+
+        buf.delete_mark(&mut clipboard);
+        buf.cursor_move_to_logical(Point { x: 2, y: 2 });
+        buf.overlay_block_from_clipboard(&clipboard);
+
+        assert_eq!(buffer_contents(&mut buf), "ad\neh\nijbc\n  fg");
+    }
+
+    #[test]
+    fn overlay_block_from_clipboard_strips_crlf() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        let mut clipboard = Clipboard::default();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"abcd\nefgh");
+        clipboard.write(b"XY\r\nZ\r\n".to_vec());
+        buf.cursor_move_to_logical(Point { x: 1, y: 0 });
+
+        buf.overlay_block_from_clipboard(&clipboard);
+
+        assert_eq!(buffer_contents(&mut buf), "aXYd\neZgh");
+    }
+
+    #[test]
+    fn line_mark_copy_is_linewise_only_when_newline_terminated() {
+        let mut clipboard = Clipboard::default();
+
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"alpha\nomega");
+        buf.cursor_move_to_logical(Point { x: 0, y: 1 });
+        buf.mark(TextMarkKind::Line);
+        buf.copy_mark(&mut clipboard);
+        assert!(!clipboard.is_line_copy());
+
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"alpha\nomega");
+        buf.cursor_move_to_logical(Point { x: 0, y: 1 });
+        buf.mark(TextMarkKind::Line);
+        buf.move_mark(&mut clipboard);
+        assert!(!clipboard.is_line_copy());
+
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"alpha\nomega\n");
+        buf.cursor_move_to_logical(Point { x: 0, y: 1 });
+        buf.mark(TextMarkKind::Line);
+        buf.copy_mark(&mut clipboard);
+        assert!(clipboard.is_line_copy());
+    }
+
+    #[test]
+    fn reflow_document_hard_wraps_with_margins() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"alpha beta gamma delta\n\nzeta eta\n");
+
+        buf.reflow_document(2, 12, 4);
+
+        assert_eq!(buffer_contents(&mut buf), "    alpha\n  beta gamma\n  delta\n\n    zeta eta\n");
+    }
+
+    #[test]
+    fn reflow_document_wraps_wide_text_by_display_columns() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw("漢字 abc".as_bytes());
+
+        buf.reflow_document(0, 6, 0);
+
+        assert_eq!(buffer_contents(&mut buf), "漢字\nabc");
+    }
+
+    #[test]
+    fn reflow_document_clears_mark() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"alpha beta gamma");
+        buf.cursor_move_to_logical(Point { x: 0, y: 0 });
+        buf.mark(TextMarkKind::Char);
+        buf.cursor_move_to_logical(Point { x: 5, y: 0 });
+        buf.mark(TextMarkKind::Char);
+
+        buf.reflow_document(0, 8, 0);
+
+        assert!(buf.mark.is_none());
+    }
+
+    #[test]
+    fn shift_block_left_does_not_delete_nonblank_prefix() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"abcd\nefgh");
+        buf.cursor_move_to_logical(Point { x: 1, y: 0 });
+        buf.mark(TextMarkKind::Block);
+        buf.cursor_move_to_logical(Point { x: 1, y: 1 });
+        buf.mark(TextMarkKind::Block);
+
+        buf.shift_block_mark(false);
+
+        assert_eq!(buffer_contents(&mut buf), "abcd\nefgh");
+    }
+
+    #[test]
+    fn shift_block_without_mark_uses_indent_change() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"abc");
+        buf.cursor_move_to_logical(Point { x: 0, y: 0 });
+
+        buf.shift_block_mark(true);
+
+        assert_eq!(buffer_contents(&mut buf), "    abc");
     }
 
     #[test]
