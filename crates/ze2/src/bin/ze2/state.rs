@@ -143,12 +143,16 @@ pub struct State {
     pub wants_statusbar_focus: bool,
     pub wants_editor_focus: bool,
     pub wants_ruler: bool,
+    pub reflow_left_margin: CoordType,
+    pub reflow_right_margin: CoordType,
+    pub reflow_paragraph_margin: CoordType,
 
     // Dialog & Feature Requests
     pub wants_save: bool,
     pub wants_go_to_file: bool,
     pub wants_about: bool,
     pub wants_word_count: bool,
+    pub wants_help: bool,
     pub wants_close: bool,
     pub wants_close_after_save: bool,
     pub wants_exit_after_close: bool,
@@ -233,12 +237,16 @@ impl State {
             wants_statusbar_focus: false,
             wants_editor_focus: false,
             wants_ruler: settings_ruler,
+            reflow_left_margin: 0,
+            reflow_right_margin: 0,
+            reflow_paragraph_margin: 0,
 
             // Dialog & Feature Requests
             wants_save: false,
             wants_go_to_file: false,
             wants_about: false,
             wants_word_count: false,
+            wants_help: false,
             wants_close: false,
             wants_close_after_save: false,
             wants_exit_after_close: false,
@@ -321,6 +329,7 @@ impl State {
             || self.wants_go_to_file
             || self.wants_about
             || self.wants_word_count
+            || self.wants_help
             || self.error_log_count != 0
     }
 }

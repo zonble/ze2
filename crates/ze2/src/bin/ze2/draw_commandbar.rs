@@ -171,7 +171,20 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
 
 fn submit_commandbar_input(ctx: &mut Context, state: &mut State) {
     let input = state.command_bar_input.trim();
-    if let Some(invocation) = command_from_text_with_modes(
+
+    if let Some(invocations) = command_macro_from_text(
+        input,
+        state.command_bar_include_vim_commands,
+        state.command_bar_include_emacs_commands,
+    ) {
+        state.command_bar_input.clear();
+        state.command_bar_error.clear();
+        state.command_bar_active = false;
+        state.wants_editor_focus = true;
+        for invocation in invocations {
+            execute_command_invocation(ctx, state, invocation);
+        }
+    } else if let Some(invocation) = command_from_text_with_modes(
         input,
         state.command_bar_include_vim_commands,
         state.command_bar_include_emacs_commands,
@@ -186,4 +199,29 @@ fn submit_commandbar_input(ctx: &mut Context, state: &mut State) {
         state.command_bar_error = loc(LocId::CommandBarUnknownCommand).to_string();
         ctx.needs_rerender();
     }
+}
+
+fn command_macro_from_text(
+    input: &str,
+    include_vim_commands: bool,
+    include_emacs_commands: bool,
+) -> Option<Vec<crate::commands::CommandInvocation>> {
+    let mut rest = input.trim();
+    if !rest.starts_with('[') {
+        return None;
+    }
+
+    let mut invocations = Vec::new();
+    while !rest.is_empty() {
+        rest = rest.strip_prefix('[')?;
+        let (command, tail) = rest.split_once(']')?;
+        invocations.push(command_from_text_with_modes(
+            command.trim(),
+            include_vim_commands,
+            include_emacs_commands,
+        )?);
+        rest = tail.trim_start();
+    }
+
+    Some(invocations)
 }

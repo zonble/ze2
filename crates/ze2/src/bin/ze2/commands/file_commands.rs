@@ -22,7 +22,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::OpenFile,
-        names: &["open", "file-open", "e", "edit"],
+        names: &["open", "file-open", "e", "edit", "pe3"],
         namesVim: &["o"],
         namesEmacs: &["find-file"],
         loc_id: Some(LocId::FileOpen),
@@ -32,7 +32,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::SaveAndCloseFileAndExitIfLast,
-        names: &["file"],
+        names: &["file", "fl"],
         namesVim: &["wq"],
         namesEmacs: &["save-buffers-kill-emacs"],
         loc_id: None,
@@ -42,7 +42,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::Save,
-        names: &["save", "file-save"],
+        names: &["save", "file-save", "sv"],
         namesVim: &["w"],
         namesEmacs: &["save-buffer"],
         loc_id: Some(LocId::FileSave),
@@ -92,7 +92,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::CloseFileAndExitIfLast,
-        names: &["quit"],
+        names: &["quit", "q"],
         namesVim: &[],
         namesEmacs: &[],
         loc_id: None,

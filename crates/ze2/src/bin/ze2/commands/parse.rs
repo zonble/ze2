@@ -228,6 +228,18 @@ fn command_from_shorthand(text: &str) -> Option<CommandInvocation> {
         });
     }
 
+    if let Some(setting) = text.strip_prefix('?').map(str::trim)
+        && !setting.is_empty()
+    {
+        return Some(CommandInvocation {
+            command: Command::QuerySetting,
+            args: CommandArgs {
+                argument: Some(setting.to_string()),
+                focus_target: CommandFocusTarget::Default,
+            },
+        });
+    }
+
     let needle = text.strip_prefix('/')?.trim();
     (!needle.is_empty()).then(|| CommandInvocation {
         command: Command::Find,
@@ -271,12 +283,14 @@ fn command_from_text_with_argument(
     None
 }
 
-fn normalize_command_name(text: &str) -> String {
+pub(crate) fn normalize_command_name(text: &str) -> String {
     let mut out = String::new();
     let mut last_was_separator = true;
 
     for ch in text.trim().chars() {
-        if ch.is_ascii_alphanumeric() {
+        // Keep '!': it's the vim "force" suffix (q! vs q). Dropping it collapsed
+        // distinct commands onto the same name and shadowed the later one.
+        if ch.is_ascii_alphanumeric() || matches!(ch, '!' | '?') {
             out.push(ch.to_ascii_lowercase());
             last_was_separator = false;
         } else if !last_was_separator {
@@ -441,6 +455,19 @@ mod tests {
     }
 
     #[test]
+    fn vim_force_quit_is_distinct_from_quit() {
+        // ":q!" must reach Exit, not collapse onto ":q" (CloseFile) by losing the '!'.
+        assert!(matches!(
+            command_from_text("q!"),
+            Some(CommandInvocation { command: Command::Exit, .. })
+        ));
+        assert!(matches!(
+            command_from_text("q"),
+            Some(CommandInvocation { command: Command::CloseFile, .. })
+        ));
+    }
+
+    #[test]
     fn command_text_accepts_parameterized_commands() {
         for (text, expected_command, expected_argument) in [
             ("find needle", Command::Find, "needle"),
@@ -522,6 +549,10 @@ mod tests {
         assert!(command_from_text_with_modes("u", false, false).is_none());
         assert!(command_from_text_with_modes("undo-redo", false, false).is_none());
         assert!(command_from_text_with_modes("undo-redo", false, true).is_none());
+        assert!(matches!(
+            command_from_text_with_modes("q", false, false),
+            Some(CommandInvocation { command: Command::CloseFileAndExitIfLast, .. })
+        ));
 
         let no_modes = autocomplete_commands_with_modes("set", false, false);
         assert!(!no_modes.iter().any(|name| name == "set-wrap"));
