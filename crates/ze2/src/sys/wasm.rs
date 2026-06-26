@@ -68,6 +68,8 @@ pub fn icu_add_renaming_suffix<'a>(
     name
 }
 
-pub fn preferred_languages(_arena: &Arena) -> BVec<'_, &'_ str> {
-    BVec::empty()
+pub fn preferred_languages<'a>(arena: &'a Arena) -> BVec<'a, &'a str> {
+    let mut langs = BVec::empty();
+    langs.push(arena, "zh-Hant");
+    langs
 }

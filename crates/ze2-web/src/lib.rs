@@ -44,6 +44,7 @@ use draw_menubar::*;
 use draw_statusbar::*;
 use input_routing::*;
 use localization::*;
+use settings::{EditorColor, Settings};
 use state::*;
 
 struct Engine {
@@ -77,7 +78,7 @@ pub fn request_host_clipboard_read() {
 impl Engine {
     fn new(width: i32, height: i32) -> Result<Self, &'static str> {
         localization::init();
-        let _ = settings::Settings::reload();
+        let _ = Settings::reload();
 
         let mut tui = Tui::new().map_err(|_| "failed to create TUI")?;
         tui.setup_modifier_translations(ModifierTranslations {
@@ -142,6 +143,12 @@ impl Engine {
         })));
     }
 
+    fn redraw_full(&mut self) {
+        let size = self.tui.size();
+        self.frame(Some(Input::Resize(Size { width: 1, height: 1 })));
+        self.frame(Some(Input::Resize(size)));
+    }
+
     fn input(&mut self, input: &str) {
         let vt_iter = self.vt_parser.parse(input);
         let mut events = Vec::new();
@@ -178,6 +185,36 @@ impl Engine {
         }
 
         self.state.wants_editor_focus = true;
+        self.frame(None);
+    }
+
+    fn apply_settings(
+        &mut self,
+        word_wrap: bool,
+        word_wrap_column: CoordType,
+        ruler: bool,
+        center_text: bool,
+        highlight_current_char: bool,
+        editor_color: EditorColor,
+    ) {
+        let _ = Settings::set_word_wrap(word_wrap);
+        let _ = Settings::set_word_wrap_column(word_wrap_column);
+        let _ = Settings::set_ruler(ruler);
+        let _ = Settings::set_center_text(center_text);
+        let _ = Settings::set_highlight_current_char(highlight_current_char);
+        let _ = Settings::set_editor_color(editor_color);
+
+        self.state.wants_ruler = ruler;
+        self.state.wants_center_text = center_text;
+        self.state.highlight_current_char = highlight_current_char;
+        self.state.editor_color = editor_color;
+
+        if let Some(doc) = self.state.documents.active() {
+            let mut tb = doc.buffer.borrow_mut();
+            tb.set_word_wrap(word_wrap);
+            tb.set_word_wrap_max_column(word_wrap_column);
+        }
+
         self.frame(None);
     }
 
@@ -375,6 +412,11 @@ pub extern "C" fn ze2_web_resize(width: i32, height: i32) {
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_redraw() {
+    with_engine((), |engine| engine.redraw_full());
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ze2_web_input(ptr: *const u8, len: usize) {
     if ptr.is_null() {
         return;
@@ -411,6 +453,72 @@ pub unsafe extern "C" fn ze2_web_set_document(ptr: *const u8, len: usize) {
     let bytes = unsafe { slice::from_raw_parts(ptr, len) };
     let text = String::from_utf8_lossy(bytes);
     with_engine((), |engine| engine.set_document(&text));
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_apply_settings(
+    word_wrap: i32,
+    word_wrap_column: i32,
+    ruler: i32,
+    center_text: i32,
+    highlight_current_char: i32,
+    editor_color: i32,
+) {
+    with_engine((), |engine| {
+        engine.apply_settings(
+            word_wrap != 0,
+            word_wrap_column.max(0) as CoordType,
+            ruler != 0,
+            center_text != 0,
+            highlight_current_char != 0,
+            if editor_color == 1 { EditorColor::WhiteOnBlue } else { EditorColor::Original },
+        )
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_setting_word_wrap() -> i32 {
+    with_engine(Settings::borrow().word_wrap as i32, |engine| {
+        engine
+            .state
+            .documents
+            .active()
+            .map_or(Settings::borrow().word_wrap, |doc| doc.buffer.borrow().is_word_wrap_enabled())
+            as i32
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_setting_word_wrap_column() -> i32 {
+    with_engine(Settings::borrow().word_wrap_column as i32, |engine| {
+        engine.state.documents.active().map_or(Settings::borrow().word_wrap_column, |doc| {
+            doc.buffer.borrow().word_wrap_max_column()
+        }) as i32
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_setting_ruler() -> i32 {
+    with_engine(Settings::borrow().ruler as i32, |engine| engine.state.wants_ruler as i32)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_setting_center_text() -> i32 {
+    with_engine(Settings::borrow().center_text as i32, |engine| {
+        engine.state.wants_center_text as i32
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_setting_highlight_current_char() -> i32 {
+    with_engine(Settings::borrow().highlight_current_char as i32, |engine| {
+        engine.state.highlight_current_char as i32
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_setting_editor_color() -> i32 {
+    with_engine(0, |engine| (engine.state.editor_color == EditorColor::WhiteOnBlue) as i32)
 }
 
 #[unsafe(no_mangle)]

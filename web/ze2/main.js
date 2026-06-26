@@ -8,7 +8,7 @@ const fitAddon = new FitAddon.FitAddon();
 term.loadAddon(fitAddon);
 const terminalElement = document.getElementById("terminal");
 term.open(terminalElement);
-term.write("\x1b[?1002;1006;2004h");
+enableTerminalModes();
 terminalElement.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 });
@@ -42,12 +42,24 @@ function flush() {
   }
 }
 
+function enableTerminalModes() {
+  term.write("\x1b[?1002;1006;2004h");
+}
+
+function repaint() {
+  api.ze2_web_redraw();
+  term.reset();
+  enableTerminalModes();
+  flush();
+}
+
 let escFlushTimer = 0;
 
 const HOST_ACTION_OPEN = 1;
 const HOST_ACTION_SAVE = 2;
 const HOST_ACTION_CLIPBOARD_READ = 3;
 const HOST_ACTION_CLIPBOARD_WRITE = 4;
+const SETTINGS_KEY = "ze2-web-settings";
 
 function sendInput(data) {
   const bytes = encoder.encode(data);
@@ -69,14 +81,23 @@ function sendInput(data) {
 
   flush();
   void handleHostAction();
+  persistEditorSettings();
 }
 
 function resize() {
   fitAddon.fit();
   api.ze2_web_resize(term.cols, term.rows);
-  term.clear();
+  term.reset();
+  enableTerminalModes();
   flush();
   void handleHostAction();
+
+  requestAnimationFrame(() => {
+    fitAddon.fit();
+    api.ze2_web_resize(term.cols, term.rows);
+    repaint();
+    void handleHostAction();
+  });
 }
 
 let resizeFrame = 0;
@@ -96,6 +117,8 @@ fitAddon.fit();
 if (!api.ze2_web_init(term.cols, term.rows)) {
   term.writeln("failed to initialize ze2_web.wasm");
 } else {
+  applyStoredSettings();
+  term.clear();
   flush();
 }
 
@@ -153,6 +176,48 @@ async function handleHostAction() {
       await copyToSystemClipboard();
       break;
   }
+  persistEditorSettings();
+}
+
+function applyStoredSettings() {
+  const settings = readStoredSettings();
+  api.ze2_web_apply_settings(
+    settings.wordWrap ? 1 : 0,
+    settings.wordWrapColumn,
+    settings.ruler ? 1 : 0,
+    settings.centerText ? 1 : 0,
+    settings.highlightCurrentChar ? 1 : 0,
+    settings.editorColor,
+  );
+}
+
+function readStoredSettings() {
+  const defaults = {
+    wordWrap: false,
+    wordWrapColumn: 0,
+    ruler: false,
+    centerText: false,
+    highlightCurrentChar: false,
+    editorColor: 0,
+  };
+
+  try {
+    return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") };
+  } catch {
+    return defaults;
+  }
+}
+
+function persistEditorSettings() {
+  const settings = {
+    wordWrap: api.ze2_web_setting_word_wrap() !== 0,
+    wordWrapColumn: api.ze2_web_setting_word_wrap_column(),
+    ruler: api.ze2_web_setting_ruler() !== 0,
+    centerText: api.ze2_web_setting_center_text() !== 0,
+    highlightCurrentChar: api.ze2_web_setting_highlight_current_char() !== 0,
+    editorColor: api.ze2_web_setting_editor_color(),
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
 async function copyToSystemClipboard() {

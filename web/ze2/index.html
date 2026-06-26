@@ -10,6 +10,7 @@
       body {
         height: 100%;
         margin: 0;
+        overflow: hidden;
         background: #111;
         color: #eee;
         font-family: system-ui, sans-serif;
@@ -39,6 +40,11 @@
 
       #terminal {
         min-height: 0;
+        overflow: hidden;
+      }
+
+      #terminal .xterm-viewport {
+        overflow: hidden !important;
       }
     </style>
   </head>
@@ -55,4 +61,3 @@
     <script type="module" src="./main.js"></script>
   </body>
 </html>
-
