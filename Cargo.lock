@@ -876,6 +876,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ze2-web"
+version = "0.1.0"
+dependencies = [
+ "stdext",
+ "ze2",
+]
+
+[[package]]
 name = "zerocopy"
 version = "0.8.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"

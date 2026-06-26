@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ze2 web POC</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #111;
+        color: #eee;
+        font-family: system-ui, sans-serif;
+      }
+
+      body {
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px;
+        background: #202020;
+        border-bottom: 1px solid #333;
+      }
+
+      button {
+        border: 1px solid #555;
+        background: #2f2f2f;
+        color: #eee;
+        padding: 6px 10px;
+        font: inherit;
+      }
+
+      #terminal {
+        min-height: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button id="open">Open</button>
+      <button id="save">Save</button>
+      <span>ze2 WASM + xterm.js POC</span>
+    </div>
+    <div id="terminal"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
+

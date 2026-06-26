@@ -166,6 +166,37 @@ const ROOT_ID: u64 = 0x14057B7EF767814F; // Knuth's MMIX constant
 const SHIFT_TAB: InputKey = vk::TAB.with_modifiers(kbmod::SHIFT);
 const KBMOD_FOR_WORD_NAV: InputKeyMod =
     if cfg!(any(target_os = "macos", target_os = "ios")) { kbmod::ALT } else { kbmod::CTRL };
+#[cfg(target_arch = "wasm32")]
+const TUI_ARENA_CAPACITY: usize = 8 * MEBI;
+#[cfg(not(target_arch = "wasm32"))]
+const TUI_ARENA_CAPACITY: usize = 128 * MEBI;
+
+#[cfg(target_arch = "wasm32")]
+type TuiInstant = std::time::SystemTime;
+#[cfg(not(target_arch = "wasm32"))]
+type TuiInstant = std::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+fn tui_now() -> TuiInstant {
+    // `Instant::now()` panics on wasm32-unknown-unknown without a JS time
+    // import. The web POC does not need precise double-click timing yet.
+    std::time::SystemTime::UNIX_EPOCH
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn tui_now() -> TuiInstant {
+    std::time::Instant::now()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn tui_elapsed_gt(_now: TuiInstant, _then: TuiInstant, _duration: time::Duration) -> bool {
+    false
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn tui_elapsed_gt(now: TuiInstant, then: TuiInstant, duration: time::Duration) -> bool {
+    now - then > duration
+}
 
 type Input<'input> = input::Input<'input>;
 type InputKey = input::InputKey;
@@ -339,7 +370,7 @@ pub struct Tui {
     left_mouse_down_target: u64,
     /// Timestamp of the last mouse up event.
     /// Used for tracking double/triple clicks.
-    mouse_up_timestamp: std::time::Instant,
+    mouse_up_timestamp: TuiInstant,
     /// The current mouse state.
     mouse_state: InputMouseState,
     /// Whether the mouse is currently being dragged.
@@ -378,8 +409,8 @@ pub struct Tui {
 impl Tui {
     /// Creates a new [`Tui`] instance for storing state across frames.
     pub fn new() -> io::Result<Self> {
-        let arena_prev = Arena::new(128 * MEBI)?;
-        let arena_next = Arena::new(128 * MEBI)?;
+        let arena_prev = Arena::new(TUI_ARENA_CAPACITY)?;
+        let arena_next = Arena::new(TUI_ARENA_CAPACITY)?;
         // SAFETY: Since `prev_tree` refers to `arena_prev`/`arena_next`, from its POV the lifetime
         // is `'static`, requiring us to use `transmute` to circumvent the borrow checker.
         let prev_tree = Tree::new(unsafe { mem::transmute::<&Arena, &Arena>(&arena_next) });
@@ -406,7 +437,7 @@ impl Tui {
             mouse_position: Point::MIN,
             mouse_down_position: Point::MIN,
             left_mouse_down_target: 0,
-            mouse_up_timestamp: std::time::Instant::now(),
+            mouse_up_timestamp: tui_now(),
             mouse_state: InputMouseState::None,
             mouse_is_drag: false,
             mouse_click_counter: 0,
@@ -534,7 +565,7 @@ impl Tui {
             self.mouse_is_drag = false;
         }
 
-        let now = std::time::Instant::now();
+        let now = tui_now();
         let mut input_text = None;
         let mut input_keyboard = None;
         let mut input_mouse_modifiers = kbmod::NONE;
@@ -646,8 +677,11 @@ impl Tui {
                     if self.mouse_click_counter != 0 {
                         if self.first_click_target != target
                             || self.first_click_position != next_position
-                            || (now - self.mouse_up_timestamp)
-                                > std::time::Duration::from_millis(500)
+                            || tui_elapsed_gt(
+                                now,
+                                self.mouse_up_timestamp,
+                                std::time::Duration::from_millis(500),
+                            )
                         {
                             // If the cursor moved / the focus changed in between, or if the user did a slow click,
                             // we reset the click counter. On mouse-up it'll transition to a regular click.
