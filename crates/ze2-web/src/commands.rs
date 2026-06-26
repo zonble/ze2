@@ -3,6 +3,7 @@
 
 use ze2::tui::Context;
 
+use crate::request_host_clipboard_read;
 use crate::state::State;
 
 #[path = "../../ze2/src/bin/ze2/commands/arguments.rs"]
@@ -70,6 +71,14 @@ pub fn execute_command_invocation(
     state: &mut State,
     invocation: CommandInvocation,
 ) {
+    if matches!(invocation.command, Command::Exit | Command::CloseFileAndExitIfLast) {
+        return;
+    }
+    if invocation.command == Command::Paste {
+        request_host_clipboard_read();
+        return;
+    }
+
     let Some(definition) = command_definition(invocation.command) else {
         return;
     };

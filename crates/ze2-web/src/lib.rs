@@ -6,11 +6,12 @@
 use std::alloc::{Layout, alloc, dealloc};
 use std::ptr::{self, NonNull};
 use std::slice;
+use std::sync::atomic::{AtomicI32, Ordering};
 
 use stdext::arena::{self, scratch_arena};
 use ze2::framebuffer::IndexedColor;
 use ze2::helpers::{CoordType, MEBI, Point, Size};
-use ze2::input::Input;
+use ze2::input::{Input, kbmod, vk};
 use ze2::tui::{Context, ModifierTranslations, Tui};
 use ze2::{input, vt};
 
@@ -23,8 +24,6 @@ mod documents;
 mod draw_commandbar;
 #[path = "../../ze2/src/bin/ze2/draw_editor.rs"]
 mod draw_editor;
-#[path = "../../ze2/src/bin/ze2/draw_filepicker.rs"]
-mod draw_filepicker;
 #[path = "../../ze2/src/bin/ze2/draw_menubar.rs"]
 mod draw_menubar;
 #[path = "../../ze2/src/bin/ze2/draw_statusbar.rs"]
@@ -41,7 +40,6 @@ mod state;
 use commands::*;
 use draw_commandbar::*;
 use draw_editor::*;
-use draw_filepicker::*;
 use draw_menubar::*;
 use draw_statusbar::*;
 use input_routing::*;
@@ -55,9 +53,26 @@ struct Engine {
     input_parser: input::Parser,
     output: Vec<u8>,
     document: Vec<u8>,
+    host_action: HostAction,
 }
 
 static mut ENGINE: *mut Engine = ptr::null_mut();
+static PENDING_HOST_ACTION: AtomicI32 = AtomicI32::new(HostAction::None as i32);
+
+#[repr(i32)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum HostAction {
+    #[default]
+    None = 0,
+    Open = 1,
+    Save = 2,
+    ClipboardRead = 3,
+    ClipboardWrite = 4,
+}
+
+pub fn request_host_clipboard_read() {
+    PENDING_HOST_ACTION.store(HostAction::ClipboardRead as i32, Ordering::Relaxed);
+}
 
 impl Engine {
     fn new(width: i32, height: i32) -> Result<Self, &'static str> {
@@ -92,6 +107,7 @@ impl Engine {
             input_parser: input::Parser::new(),
             output: Vec::new(),
             document: Vec::new(),
+            host_action: HostAction::None,
         };
         engine.frame(Some(Input::Resize(Size {
             width: clamp_size(width),
@@ -115,6 +131,7 @@ impl Engine {
         let output = self.tui.render(&scratch);
         self.output.clear();
         self.output.extend_from_slice(output.as_bytes());
+        self.collect_host_action();
         self.refresh_document_cache();
     }
 
@@ -136,8 +153,16 @@ impl Engine {
         }
 
         for event in &events {
+            if matches!(event, OwnedInput::Keyboard(key) if *key == (kbmod::CTRL | vk::V)) {
+                self.host_action = HostAction::ClipboardRead;
+                continue;
+            }
             self.frame(Some(borrow_input(event)));
         }
+    }
+
+    fn paste(&mut self, text: &[u8]) {
+        self.frame(Some(Input::Paste(text.to_vec())));
     }
 
     fn set_document(&mut self, text: &str) {
@@ -172,6 +197,37 @@ impl Engine {
             self.document.extend_from_slice(chunk);
             off += chunk.len();
         }
+    }
+
+    fn collect_host_action(&mut self) {
+        let pending = PENDING_HOST_ACTION.swap(HostAction::None as i32, Ordering::Relaxed);
+        if pending == HostAction::ClipboardRead as i32 {
+            self.host_action = HostAction::ClipboardRead;
+            return;
+        }
+
+        match self.state.wants_file_picker {
+            StateFilePicker::Open => {
+                self.state.wants_file_picker = StateFilePicker::None;
+                self.host_action = HostAction::Open;
+            }
+            StateFilePicker::SaveAs | StateFilePicker::SaveAsShown => {
+                self.state.wants_file_picker = StateFilePicker::None;
+                self.state.wants_save = false;
+                self.host_action = HostAction::Save;
+            }
+            StateFilePicker::None => {}
+        }
+
+        if self.tui.clipboard_ref().wants_host_sync() {
+            self.host_action = HostAction::ClipboardWrite;
+        }
+    }
+
+    fn take_host_action(&mut self) -> HostAction {
+        let action = self.host_action;
+        self.host_action = HostAction::None;
+        action
     }
 }
 
@@ -230,9 +286,8 @@ fn draw(ctx: &mut Context, state: &mut State) {
     if state.wants_goto {
         draw_goto_menu(ctx, state);
     }
-    if state.wants_file_picker != StateFilePicker::None {
-        draw_file_picker(ctx, state);
-    }
+    // The browser host owns file picking. Keep the state flag for Engine to
+    // convert into a JS host action instead of rendering the native file picker.
     if state.wants_save {
         draw_handle_save(ctx, state);
     }
@@ -335,6 +390,20 @@ pub extern "C" fn ze2_web_flush_input() {
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn ze2_web_paste(ptr: *const u8, len: usize) {
+    if ptr.is_null() {
+        return;
+    }
+    let bytes = unsafe { slice::from_raw_parts(ptr, len) };
+    with_engine((), |engine| engine.paste(bytes));
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_take_host_action() -> i32 {
+    with_engine(HostAction::None as i32, |engine| engine.take_host_action() as i32)
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ze2_web_set_document(ptr: *const u8, len: usize) {
     if ptr.is_null() {
         return;
@@ -352,6 +421,21 @@ pub extern "C" fn ze2_web_document_ptr() -> *const u8 {
 #[unsafe(no_mangle)]
 pub extern "C" fn ze2_web_document_len() -> usize {
     with_engine(0, |engine| engine.document.len())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_clipboard_ptr() -> *const u8 {
+    with_engine(ptr::null(), |engine| engine.tui.clipboard_ref().read().as_ptr())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_clipboard_len() -> usize {
+    with_engine(0, |engine| engine.tui.clipboard_ref().read().len())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_mark_clipboard_synced() {
+    with_engine((), |engine| engine.tui.clipboard_mut().mark_as_synchronized());
 }
 
 #[unsafe(no_mangle)]

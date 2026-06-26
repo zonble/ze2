@@ -2,11 +2,16 @@ const term = new Terminal({
   convertEol: true,
   cursorBlink: true,
   fontFamily: 'Consolas, "Cascadia Mono", "SFMono-Regular", monospace',
-  fontSize: 14,
+  fontSize: 21,
 });
 const fitAddon = new FitAddon.FitAddon();
 term.loadAddon(fitAddon);
-term.open(document.getElementById("terminal"));
+const terminalElement = document.getElementById("terminal");
+term.open(terminalElement);
+term.write("\x1b[?1002;1006;2004h");
+terminalElement.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+});
 
 const wasmResponse = await fetch("./ze2_web.wasm?real-editor=1", { cache: "no-store" });
 let wasm;
@@ -39,6 +44,11 @@ function flush() {
 
 let escFlushTimer = 0;
 
+const HOST_ACTION_OPEN = 1;
+const HOST_ACTION_SAVE = 2;
+const HOST_ACTION_CLIPBOARD_READ = 3;
+const HOST_ACTION_CLIPBOARD_WRITE = 4;
+
 function sendInput(data) {
   const bytes = encoder.encode(data);
   const input = writeBytes(bytes);
@@ -58,6 +68,7 @@ function sendInput(data) {
   }
 
   flush();
+  void handleHostAction();
 }
 
 function resize() {
@@ -65,6 +76,20 @@ function resize() {
   api.ze2_web_resize(term.cols, term.rows);
   term.clear();
   flush();
+  void handleHostAction();
+}
+
+let resizeFrame = 0;
+
+function scheduleResize() {
+  if (resizeFrame) {
+    cancelAnimationFrame(resizeFrame);
+  }
+
+  resizeFrame = requestAnimationFrame(() => {
+    resizeFrame = 0;
+    resize();
+  });
 }
 
 fitAddon.fit();
@@ -78,9 +103,76 @@ term.onData((data) => {
   sendInput(data);
 });
 
-window.addEventListener("resize", resize);
+window.addEventListener("keydown", (event) => {
+  if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+  if (key === "o") {
+    event.preventDefault();
+    sendInput("\x0f");
+  } else if (key === "s") {
+    event.preventDefault();
+    sendInput("\x13");
+  } else if (key === "c") {
+    event.preventDefault();
+    sendInput("\x03");
+  } else if (key === "x") {
+    event.preventDefault();
+    sendInput("\x18");
+  } else if (key === "v") {
+    event.preventDefault();
+    sendInput("\x16");
+  }
+});
+
+window.addEventListener("resize", scheduleResize);
+new ResizeObserver(scheduleResize).observe(terminalElement);
 
 document.getElementById("open").addEventListener("click", async () => {
+  await openBrowserFile();
+});
+
+document.getElementById("save").addEventListener("click", () => {
+  saveBrowserFile();
+});
+
+async function handleHostAction() {
+  switch (api.ze2_web_take_host_action()) {
+    case HOST_ACTION_OPEN:
+      await openBrowserFile();
+      break;
+    case HOST_ACTION_SAVE:
+      saveBrowserFile();
+      break;
+    case HOST_ACTION_CLIPBOARD_READ:
+      await pasteFromSystemClipboard();
+      break;
+    case HOST_ACTION_CLIPBOARD_WRITE:
+      await copyToSystemClipboard();
+      break;
+  }
+}
+
+async function copyToSystemClipboard() {
+  const ptr = api.ze2_web_clipboard_ptr();
+  const len = api.ze2_web_clipboard_len();
+  const text = decoder.decode(readBytes(ptr, len));
+  await navigator.clipboard.writeText(text);
+  api.ze2_web_mark_clipboard_synced();
+}
+
+async function pasteFromSystemClipboard() {
+  const text = await navigator.clipboard.readText();
+  const bytes = encoder.encode(text);
+  const paste = writeBytes(bytes);
+  api.ze2_web_paste(paste.ptr, paste.len);
+  api.ze2_web_dealloc(paste.ptr, paste.len);
+  flush();
+}
+
+async function openBrowserFile() {
   const [file] = await showOpenFilePicker({
     types: [{ description: "Text", accept: { "text/*": [".txt", ".md", ".rs"] } }],
   });
@@ -91,9 +183,9 @@ document.getElementById("open").addEventListener("click", async () => {
   api.ze2_web_dealloc(doc.ptr, doc.len);
   term.clear();
   flush();
-});
+}
 
-document.getElementById("save").addEventListener("click", () => {
+function saveBrowserFile() {
   const ptr = api.ze2_web_document_ptr();
   const len = api.ze2_web_document_len();
   const text = decoder.decode(readBytes(ptr, len));
@@ -104,4 +196,4 @@ document.getElementById("save").addEventListener("click", () => {
   anchor.download = "ze2-web.txt";
   anchor.click();
   URL.revokeObjectURL(url);
-});
+}
