@@ -9,7 +9,7 @@ use std::slice;
 
 use stdext::arena::{self, scratch_arena};
 use ze2::framebuffer::IndexedColor;
-use ze2::helpers::{CoordType, MEBI, Size};
+use ze2::helpers::{CoordType, MEBI, Point, Size};
 use ze2::input::Input;
 use ze2::tui::{Context, ModifierTranslations, Tui};
 use ze2::{input, vt};
@@ -141,14 +141,14 @@ impl Engine {
     }
 
     fn set_document(&mut self, text: &str) {
-        if self.state.documents.len() == 0 {
-            let _ = self.state.documents.add_untitled();
+        while self.state.documents.len() != 0 {
+            self.state.documents.remove_active();
         }
 
-        if let Some(doc) = self.state.documents.active_mut() {
+        if let Ok(doc) = self.state.documents.add_untitled() {
             let mut tb = doc.buffer.borrow_mut();
-            let text = text.to_string();
-            tb.copy_from_str(&text);
+            tb.write_raw(text.as_bytes());
+            tb.cursor_move_to_logical(Point::default());
             tb.mark_as_clean();
         }
 
@@ -327,6 +327,11 @@ pub unsafe extern "C" fn ze2_web_input(ptr: *const u8, len: usize) {
     let bytes = unsafe { slice::from_raw_parts(ptr, len) };
     let input = String::from_utf8_lossy(bytes);
     with_engine((), |engine| engine.input(&input));
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_flush_input() {
+    with_engine((), |engine| engine.input(""));
 }
 
 #[unsafe(no_mangle)]

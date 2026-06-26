@@ -37,6 +37,29 @@ function flush() {
   }
 }
 
+let escFlushTimer = 0;
+
+function sendInput(data) {
+  const bytes = encoder.encode(data);
+  const input = writeBytes(bytes);
+  api.ze2_web_input(input.ptr, input.len);
+  api.ze2_web_dealloc(input.ptr, input.len);
+
+  if (escFlushTimer) {
+    clearTimeout(escFlushTimer);
+    escFlushTimer = 0;
+  }
+
+  if (data.endsWith("\x1b")) {
+    escFlushTimer = setTimeout(() => {
+      api.ze2_web_flush_input();
+      flush();
+    }, 120);
+  }
+
+  flush();
+}
+
 function resize() {
   fitAddon.fit();
   api.ze2_web_resize(term.cols, term.rows);
@@ -52,11 +75,7 @@ if (!api.ze2_web_init(term.cols, term.rows)) {
 }
 
 term.onData((data) => {
-  const bytes = encoder.encode(data);
-  const input = writeBytes(bytes);
-  api.ze2_web_input(input.ptr, input.len);
-  api.ze2_web_dealloc(input.ptr, input.len);
-  flush();
+  sendInput(data);
 });
 
 window.addEventListener("resize", resize);
