@@ -3,3 +3,4 @@
 *.profraw
 lcov.info
 target
+web/ze2/ze2_web.wasm

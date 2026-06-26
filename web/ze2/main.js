@@ -1,7 +1,7 @@
 const term = new Terminal({
   convertEol: true,
   cursorBlink: true,
-  fontFamily: 'Consolas, "Cascadia Mono", "SFMono-Regular", monospace',
+  fontFamily: fontFamilyForChoice(readStoredSettings().fontFamily),
   fontSize: 21,
 });
 const fitAddon = new FitAddon.FitAddon();
@@ -161,6 +161,15 @@ document.getElementById("save").addEventListener("click", () => {
   saveBrowserFile();
 });
 
+for (const input of document.querySelectorAll('input[name="font"]')) {
+  input.addEventListener("change", () => {
+    if (input.checked) {
+      applyFontChoice(input.value);
+      persistEditorSettings();
+    }
+  });
+}
+
 async function handleHostAction() {
   switch (api.ze2_web_take_host_action()) {
     case HOST_ACTION_OPEN:
@@ -189,6 +198,7 @@ function applyStoredSettings() {
     settings.highlightCurrentChar ? 1 : 0,
     settings.editorColor,
   );
+  applyFontChoice(settings.fontFamily);
 }
 
 function readStoredSettings() {
@@ -199,6 +209,7 @@ function readStoredSettings() {
     centerText: false,
     highlightCurrentChar: false,
     editorColor: 0,
+    fontFamily: "standard",
   };
 
   try {
@@ -216,8 +227,24 @@ function persistEditorSettings() {
     centerText: api.ze2_web_setting_center_text() !== 0,
     highlightCurrentChar: api.ze2_web_setting_highlight_current_char() !== 0,
     editorColor: api.ze2_web_setting_editor_color(),
+    fontFamily: document.querySelector('input[name="font"]:checked')?.value || "standard",
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function fontFamilyForChoice(choice) {
+  if (choice === "kai") {
+    return '"DFKai-SB", "BiauKai", KaiTi, "TW-Kai", serif';
+  }
+  return 'Consolas, "Cascadia Mono", "SFMono-Regular", monospace';
+}
+
+function applyFontChoice(choice) {
+  const normalized = choice === "kai" ? "kai" : "standard";
+  term.options.fontFamily = fontFamilyForChoice(normalized);
+  document.getElementById("font-standard").checked = normalized === "standard";
+  document.getElementById("font-kai").checked = normalized === "kai";
+  scheduleResize();
 }
 
 async function copyToSystemClipboard() {

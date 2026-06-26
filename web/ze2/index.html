@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hant">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ze2 web POC</title>
+    <title>ze2 web</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <style>
       html,
@@ -25,9 +25,16 @@
         display: flex;
         gap: 8px;
         align-items: center;
-        padding: 8px;
         background: #202020;
         border-bottom: 1px solid #333;
+        font-size: 10pt;
+        padding: 8px;
+      }
+
+      .toolbar span {
+        font-weight: bold;
+        font-size: 14pt;
+        margin-right:auto;
       }
 
       button {
@@ -36,6 +43,12 @@
         color: #eee;
         padding: 6px 10px;
         font: inherit;
+      }
+
+      .font-choice {
+        display: inline-flex;
+        gap: 4px;
+        align-items: center;
       }
 
       #terminal {
@@ -50,9 +63,17 @@
   </head>
   <body>
     <div class="toolbar">
-      <button id="open">Open</button>
-      <button id="save">Save</button>
-      <span>ze2 WASM + xterm.js POC</span>
+      <span>ze2 (WASM+xterm.js)</span>
+      <button id="open">讀檔</button>
+      <button id="save">存檔</button>
+      <label class="font-choice">
+        <input type="radio" name="font" id="font-standard" value="standard" checked />
+        標準字體
+      </label>
+      <label class="font-choice">
+        <input type="radio" name="font" id="font-kai" value="kai" />
+        標楷體
+      </label>
     </div>
     <div id="terminal"></div>
 
