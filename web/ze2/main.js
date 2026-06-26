@@ -8,7 +8,7 @@ const fitAddon = new FitAddon.FitAddon();
 term.loadAddon(fitAddon);
 term.open(document.getElementById("terminal"));
 
-const wasmResponse = await fetch("./ze2_web.wasm");
+const wasmResponse = await fetch("./ze2_web.wasm?real-editor=1", { cache: "no-store" });
 let wasm;
 try {
   wasm = await WebAssembly.instantiateStreaming(Promise.resolve(wasmResponse.clone()), {});

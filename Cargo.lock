@@ -880,6 +880,7 @@ name = "ze2-web"
 version = "0.1.0"
 dependencies = [
  "stdext",
+ "toml-span",
  "ze2",
 ]
 

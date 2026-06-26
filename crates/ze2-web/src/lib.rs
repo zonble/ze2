@@ -1,32 +1,97 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![allow(dead_code)]
+
 use std::alloc::{Layout, alloc, dealloc};
 use std::ptr::{self, NonNull};
 use std::slice;
 
 use stdext::arena::{self, scratch_arena};
-use ze2::helpers::{CoordType, MEBI, Rect, Size};
-use ze2::input::{Input, vk};
-use ze2::tui::{ButtonStyle, Context, Position, Tui};
+use ze2::framebuffer::IndexedColor;
+use ze2::helpers::{CoordType, MEBI, Size};
+use ze2::input::Input;
+use ze2::tui::{Context, ModifierTranslations, Tui};
+use ze2::{input, vt};
+
+#[path = "../../ze2/src/bin/ze2/apperr.rs"]
+mod apperr;
+mod commands;
+#[path = "../../ze2/src/bin/ze2/documents.rs"]
+mod documents;
+#[path = "../../ze2/src/bin/ze2/draw_commandbar.rs"]
+mod draw_commandbar;
+#[path = "../../ze2/src/bin/ze2/draw_editor.rs"]
+mod draw_editor;
+#[path = "../../ze2/src/bin/ze2/draw_filepicker.rs"]
+mod draw_filepicker;
+#[path = "../../ze2/src/bin/ze2/draw_menubar.rs"]
+mod draw_menubar;
+#[path = "../../ze2/src/bin/ze2/draw_statusbar.rs"]
+mod draw_statusbar;
+#[path = "../../ze2/src/bin/ze2/input_routing.rs"]
+mod input_routing;
+#[path = "../../ze2/src/bin/ze2/localization.rs"]
+mod localization;
+#[path = "../../ze2/src/bin/ze2/settings.rs"]
+mod settings;
+#[path = "../../ze2/src/bin/ze2/state.rs"]
+mod state;
+
+use commands::*;
+use draw_commandbar::*;
+use draw_editor::*;
+use draw_filepicker::*;
+use draw_menubar::*;
+use draw_statusbar::*;
+use input_routing::*;
+use localization::*;
+use state::*;
 
 struct Engine {
     tui: Tui,
-    text: String,
-    status: String,
+    state: State,
+    vt_parser: vt::Parser,
+    input_parser: input::Parser,
     output: Vec<u8>,
+    document: Vec<u8>,
 }
 
 static mut ENGINE: *mut Engine = ptr::null_mut();
 
 impl Engine {
     fn new(width: i32, height: i32) -> Result<Self, &'static str> {
-        let tui = Tui::new().map_err(|_| "failed to create TUI")?;
+        localization::init();
+        let _ = settings::Settings::reload();
+
+        let mut tui = Tui::new().map_err(|_| "failed to create TUI")?;
+        tui.setup_modifier_translations(ModifierTranslations {
+            ctrl: loc(LocId::Ctrl),
+            alt: loc(LocId::Alt),
+            shift: loc(LocId::Shift),
+        });
+        tui.set_eof_marker(loc(LocId::EndOfFileMarker));
+
+        let floater_bg = tui
+            .indexed_alpha(IndexedColor::Background, 2, 3)
+            .oklab_blend(tui.indexed_alpha(IndexedColor::Foreground, 1, 3));
+        let floater_fg = tui.contrasted(floater_bg);
+        tui.set_floater_default_bg(floater_bg);
+        tui.set_floater_default_fg(floater_fg);
+        tui.set_modal_default_bg(floater_bg);
+        tui.set_modal_default_fg(floater_fg);
+
+        let mut state = State::new().map_err(|_| "failed to create editor state")?;
+        state.documents.add_untitled().map_err(|_| "failed to create document")?;
+        state.wants_editor_focus = true;
+
         let mut engine = Self {
             tui,
-            text: "Edit this text from xterm.js".to_string(),
-            status: "Browser WASM POC".to_string(),
+            state,
+            vt_parser: vt::Parser::new(),
+            input_parser: input::Parser::new(),
             output: Vec::new(),
+            document: Vec::new(),
         };
         engine.frame(Some(Input::Resize(Size {
             width: clamp_size(width),
@@ -38,18 +103,19 @@ impl Engine {
     fn frame(&mut self, input: Option<Input<'_>>) {
         {
             let mut ctx = self.tui.create_context(input);
-            draw(&mut ctx, &mut self.text, &self.status);
+            draw(&mut ctx, &mut self.state);
         }
 
         while self.tui.needs_settling() {
             let mut ctx = self.tui.create_context(None);
-            draw(&mut ctx, &mut self.text, &self.status);
+            draw(&mut ctx, &mut self.state);
         }
 
         let scratch = scratch_arena(None);
         let output = self.tui.render(&scratch);
         self.output.clear();
         self.output.extend_from_slice(output.as_bytes());
+        self.refresh_document_cache();
     }
 
     fn resize(&mut self, width: i32, height: i32) {
@@ -60,95 +126,165 @@ impl Engine {
     }
 
     fn input(&mut self, input: &str) {
-        let mut off = 0;
-        while off < input.len() {
-            let rest = &input[off..];
-
-            if let Some((event, len)) = parse_key(rest) {
-                self.frame(Some(event));
-                off += len;
-                continue;
+        let vt_iter = self.vt_parser.parse(input);
+        let mut events = Vec::new();
+        {
+            let mut input_iter = self.input_parser.parse(vt_iter);
+            while let Some(event) = input_iter.next() {
+                events.push(owned_input(event));
             }
+        }
 
-            let Some((text, len)) = next_text_run(rest) else {
-                let ch = rest.chars().next().unwrap();
-                off += ch.len_utf8();
-                continue;
-            };
-
-            self.frame(Some(Input::Text(text)));
-            off += len;
+        for event in &events {
+            self.frame(Some(borrow_input(event)));
         }
     }
 
     fn set_document(&mut self, text: &str) {
-        self.text.clear();
-        self.text.push_str(text);
-        self.status.clear();
-        self.status.push_str("Loaded browser file");
+        if self.state.documents.len() == 0 {
+            let _ = self.state.documents.add_untitled();
+        }
+
+        if let Some(doc) = self.state.documents.active_mut() {
+            let mut tb = doc.buffer.borrow_mut();
+            let text = text.to_string();
+            tb.copy_from_str(&text);
+            tb.mark_as_clean();
+        }
+
+        self.state.wants_editor_focus = true;
         self.frame(None);
+    }
+
+    fn refresh_document_cache(&mut self) {
+        self.document.clear();
+        let Some(doc) = self.state.documents.active() else {
+            return;
+        };
+
+        let tb = doc.buffer.borrow();
+        let mut off = 0;
+        loop {
+            let chunk = tb.read_forward(off);
+            if chunk.is_empty() {
+                break;
+            }
+            self.document.extend_from_slice(chunk);
+            off += chunk.len();
+        }
     }
 }
 
-fn draw(ctx: &mut Context<'_, '_>, text: &mut String, status: &str) {
-    ctx.block_begin("root");
-    ctx.attr_focus_well();
-    ctx.attr_padding(Rect::three(1, 2, 1));
+enum OwnedInput {
+    Resize(Size),
+    Text(String),
+    Paste(Vec<u8>),
+    Keyboard(ze2::input::InputKey),
+    Mouse(ze2::input::InputMouse),
+}
 
-    ctx.label("title", "ze2 web POC");
-    ctx.label("status", status);
-
-    ctx.block_begin("editor-wrap");
-    ctx.attr_border();
-    ctx.attr_padding(Rect::one(1));
-    ctx.editline("editor", text);
-    ctx.focus_on_first_present();
-    ctx.block_end();
-
-    ctx.table_begin("toolbar");
-    ctx.attr_position(Position::Left);
-    ctx.table_set_cell_gap(Size { width: 2, height: 0 });
-    ctx.table_next_row();
-    if ctx.button("noop", "OK", ButtonStyle::default()) {
-        ctx.needs_rerender();
+fn owned_input(input: Input<'_>) -> OwnedInput {
+    match input {
+        Input::Resize(size) => OwnedInput::Resize(size),
+        Input::Text(text) => OwnedInput::Text(text.to_string()),
+        Input::Paste(paste) => OwnedInput::Paste(paste),
+        Input::Keyboard(key) => OwnedInput::Keyboard(key),
+        Input::Mouse(mouse) => OwnedInput::Mouse(mouse),
     }
-    ctx.label("hint", "Open/save is handled by the browser toolbar.");
-    ctx.table_end();
+}
 
-    ctx.block_end();
+fn borrow_input(input: &OwnedInput) -> Input<'_> {
+    match input {
+        OwnedInput::Resize(size) => Input::Resize(*size),
+        OwnedInput::Text(text) => Input::Text(text),
+        OwnedInput::Paste(paste) => Input::Paste(paste.clone()),
+        OwnedInput::Keyboard(key) => Input::Keyboard(*key),
+        OwnedInput::Mouse(mouse) => Input::Mouse(*mouse),
+    }
+}
+
+fn draw(ctx: &mut Context, state: &mut State) {
+    draw_menubar(ctx, state, false);
+
+    if let Some(invocation) = handle_input_before_editor(ctx, state) {
+        execute_command_invocation(ctx, state, invocation);
+        ctx.set_input_consumed();
+    }
+
+    draw_editor(ctx, state);
+    draw_commandbar(ctx, state);
+    draw_statusbar(ctx, state);
+
+    if state.wants_menubar_focus {
+        state.wants_menubar_focus = false;
+        state.menubar_visible = true;
+        draw_menubar(ctx, state, true);
+    }
+
+    if state.wants_close {
+        draw_handle_wants_close(ctx, state);
+    }
+    if state.wants_exit {
+        draw_handle_wants_exit(ctx, state);
+    }
+    if state.wants_goto {
+        draw_goto_menu(ctx, state);
+    }
+    if state.wants_file_picker != StateFilePicker::None {
+        draw_file_picker(ctx, state);
+    }
+    if state.wants_save {
+        draw_handle_save(ctx, state);
+    }
+    if state.wants_language_picker {
+        draw_dialog_language_change(ctx, state);
+    }
+    if state.wants_encoding_change != StateEncodingChange::None {
+        draw_dialog_encoding_change(ctx, state);
+    }
+    if state.wants_go_to_file {
+        draw_go_to_file(ctx, state);
+    }
+    if state.wants_about {
+        draw_dialog_about(ctx, state);
+    }
+    if state.wants_word_count {
+        draw_dialog_word_count(ctx, state);
+    }
+    if state.error_log_count != 0 {
+        draw_error_log(ctx, state);
+    }
+
+    if let Some(key) = ctx.keyboard_input() {
+        if let Some(invocation) = command_invocation_from_shortcut(key) {
+            execute_command_invocation(ctx, state, invocation);
+        } else if key == ze2::input::vk::F3 {
+            search_execute(ctx, state, SearchAction::Search);
+        } else {
+            return;
+        }
+
+        ctx.needs_rerender();
+        ctx.set_input_consumed();
+    }
+}
+
+fn draw_handle_wants_exit(_ctx: &mut Context, state: &mut State) {
+    while let Some(doc) = state.documents.active() {
+        if doc.buffer.borrow().is_dirty() {
+            state.wants_close = true;
+            return;
+        }
+        state.documents.remove_active();
+    }
+
+    if state.documents.len() == 0 {
+        state.exit = true;
+    }
 }
 
 fn clamp_size(value: i32) -> CoordType {
     value.clamp(1, 32767) as CoordType
-}
-
-fn parse_key(input: &str) -> Option<(Input<'_>, usize)> {
-    let bytes = input.as_bytes();
-    match bytes {
-        [b'\r', ..] => Some((Input::Keyboard(vk::RETURN), 1)),
-        [b'\t', ..] => Some((Input::Keyboard(vk::TAB), 1)),
-        [0x7f, ..] | [0x08, ..] => Some((Input::Keyboard(vk::BACK), 1)),
-        [0x1b, b'[', b'A', ..] => Some((Input::Keyboard(vk::UP), 3)),
-        [0x1b, b'[', b'B', ..] => Some((Input::Keyboard(vk::DOWN), 3)),
-        [0x1b, b'[', b'C', ..] => Some((Input::Keyboard(vk::RIGHT), 3)),
-        [0x1b, b'[', b'D', ..] => Some((Input::Keyboard(vk::LEFT), 3)),
-        [0x1b, b'[', b'H', ..] => Some((Input::Keyboard(vk::HOME), 3)),
-        [0x1b, b'[', b'F', ..] => Some((Input::Keyboard(vk::END), 3)),
-        [0x1b, b'[', b'3', b'~', ..] => Some((Input::Keyboard(vk::DELETE), 4)),
-        _ => None,
-    }
-}
-
-fn next_text_run(input: &str) -> Option<(&str, usize)> {
-    let mut end = 0;
-    for (idx, ch) in input.char_indices() {
-        if ch.is_control() {
-            break;
-        }
-        end = idx + ch.len_utf8();
-    }
-
-    if end == 0 { None } else { Some((&input[..end], end)) }
 }
 
 fn with_engine<T>(default: T, f: impl FnOnce(&mut Engine) -> T) -> T {
@@ -205,12 +341,12 @@ pub unsafe extern "C" fn ze2_web_set_document(ptr: *const u8, len: usize) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ze2_web_document_ptr() -> *const u8 {
-    with_engine(ptr::null(), |engine| engine.text.as_ptr())
+    with_engine(ptr::null(), |engine| engine.document.as_ptr())
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ze2_web_document_len() -> usize {
-    with_engine(0, |engine| engine.text.len())
+    with_engine(0, |engine| engine.document.len())
 }
 
 #[unsafe(no_mangle)]
