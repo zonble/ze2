@@ -44,7 +44,7 @@ use draw_menubar::*;
 use draw_statusbar::*;
 use input_routing::*;
 use localization::*;
-use settings::{EditorColor, Settings};
+use settings::{EditorColor, EofStyle, Settings};
 use state::*;
 
 struct Engine {
@@ -87,8 +87,6 @@ impl Engine {
             alt: loc(LocId::Alt),
             shift: loc(LocId::Shift),
         });
-        tui.set_eof_marker(loc(LocId::EndOfFileMarker));
-
         let floater_bg = tui
             .indexed_alpha(IndexedColor::Background, 2, 3)
             .oklab_blend(tui.indexed_alpha(IndexedColor::Foreground, 1, 3));
@@ -99,6 +97,7 @@ impl Engine {
         tui.set_modal_default_fg(floater_fg);
 
         let mut state = State::new().map_err(|_| "failed to create editor state")?;
+        set_eof_marker_for_style(&mut tui, state.eof_style);
         state.documents.add_untitled().map_err(|_| "failed to create document")?;
         state.wants_editor_focus = true;
 
@@ -121,11 +120,13 @@ impl Engine {
 
     fn frame(&mut self, input: Option<Input<'_>>) {
         {
+            set_eof_marker_for_style(&mut self.tui, self.state.eof_style);
             let mut ctx = self.tui.create_context(input);
             draw(&mut ctx, &mut self.state);
         }
 
         while self.tui.needs_settling() {
+            set_eof_marker_for_style(&mut self.tui, self.state.eof_style);
             let mut ctx = self.tui.create_context(None);
             draw(&mut ctx, &mut self.state);
         }
@@ -327,10 +328,12 @@ fn borrow_input(input: &OwnedInput) -> Input<'_> {
 
 fn draw(ctx: &mut Context, state: &mut State) {
     draw_menubar(ctx, state, false);
+    context_set_eof_marker_for_style(ctx, state.eof_style);
 
     if let Some(invocation) = handle_input_before_editor(ctx, state) {
         execute_command_invocation(ctx, state, invocation);
         ctx.set_input_consumed();
+        context_set_eof_marker_for_style(ctx, state.eof_style);
     }
 
     draw_editor(ctx, state);
@@ -372,6 +375,9 @@ fn draw(ctx: &mut Context, state: &mut State) {
     if state.wants_word_count {
         draw_dialog_word_count(ctx, state);
     }
+    if state.wants_help {
+        draw_dialog_help(ctx, state);
+    }
     if state.error_log_count != 0 {
         draw_error_log(ctx, state);
     }
@@ -387,6 +393,22 @@ fn draw(ctx: &mut Context, state: &mut State) {
 
         ctx.needs_rerender();
         ctx.set_input_consumed();
+    }
+}
+
+fn set_eof_marker_for_style(tui: &mut Tui, style: EofStyle) {
+    match style {
+        EofStyle::Original => tui.set_eof_marker(loc(LocId::EndOfFileMarker)),
+        EofStyle::Classic => tui.set_eof_marker("迋═ Bottom of File 迋═"),
+        EofStyle::Ks3 => tui.set_eof_marker_ks3(),
+    }
+}
+
+fn context_set_eof_marker_for_style(ctx: &mut Context, style: EofStyle) {
+    match style {
+        EofStyle::Original => ctx.set_eof_marker(loc(LocId::EndOfFileMarker)),
+        EofStyle::Classic => ctx.set_eof_marker("迋═ Bottom of File 迋═"),
+        EofStyle::Ks3 => ctx.set_eof_marker_ks3(),
     }
 }
 
