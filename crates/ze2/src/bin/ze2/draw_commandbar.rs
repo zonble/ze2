@@ -22,10 +22,7 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
     ctx.attr_background_rgba(ctx.indexed(IndexedColor::Green));
     ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightWhite));
     ctx.table_set_cell_gap(Size { width: 1, height: 0 });
-    ctx.attr_intrinsic_size(Size {
-        width: COORD_TYPE_SAFE_MAX,
-        height: 1,
-    });
+    ctx.attr_intrinsic_size(Size { width: COORD_TYPE_SAFE_MAX, height: 1 });
     ctx.attr_padding(Rect::two(0, 1));
     {
         if ctx.contains_focus()

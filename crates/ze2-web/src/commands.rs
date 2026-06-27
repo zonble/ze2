@@ -3,7 +3,7 @@
 
 use ze2::tui::Context;
 
-use crate::localization::{loc, LocId};
+use crate::localization::{LocId, loc};
 use crate::request_host_clipboard_read;
 use crate::state::State;
 
