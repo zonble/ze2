@@ -2482,9 +2482,9 @@ impl TextBuffer {
                     HighlightKind::KeywordControl => Some(IndexedColor::BrightMagenta),
                     HighlightKind::KeywordOther => Some(IndexedColor::BrightBlue),
                     HighlightKind::MarkupBold => None,
-                    HighlightKind::MarkupChanged => Some(IndexedColor::BrightBlue),
-                    HighlightKind::MarkupDeleted => Some(IndexedColor::BrightRed),
-                    HighlightKind::MarkupHeading => Some(IndexedColor::BrightBlue),
+                    HighlightKind::MarkupChanged => Some(IndexedColor::Magenta),
+                    HighlightKind::MarkupDeleted => Some(IndexedColor::Red),
+                    HighlightKind::MarkupHeading => Some(IndexedColor::BrightRed),
                     HighlightKind::MarkupInserted => Some(IndexedColor::BrightGreen),
                     HighlightKind::MarkupItalic => None,
                     HighlightKind::MarkupLink => None,
@@ -2497,6 +2497,7 @@ impl TextBuffer {
                     HighlightKind::MarkupItalic => Some(Attributes::Italic),
                     HighlightKind::MarkupLink => Some(Attributes::Underlined),
                     HighlightKind::MarkupStrikethrough => Some(Attributes::Strikethrough),
+                    HighlightKind::MarkupHeading => Some(Attributes::Bold),
                     _ => None,
                 };
 
