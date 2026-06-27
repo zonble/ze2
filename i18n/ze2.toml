@@ -1166,8 +1166,8 @@ zh-hant = "反白目前字元"
 
 [ViewEditorColorOriginal]
 en = "Editor Color: Original"
-zh-hans = "编辑器颜色：原始"
-zh-hant = "編輯器色彩：原始"
+zh-hans = "编辑器颜色：默认"
+zh-hant = "編輯器色彩：預設"
 
 [ViewEditorColorWhiteOnBlue]
 en = "Editor Color: White on Blue"
@@ -1176,13 +1176,18 @@ zh-hant = "編輯器色彩：藍底白字"
 
 [ViewEofStyleOriginal]
 en = "EOF Style: Original"
-zh-hans = "EOF 样式：原始"
-zh-hant = "EOF 樣式：原始"
+zh-hans = "EOF 样式：默认"
+zh-hant = "EOF 樣式：預設"
 
 [ViewEofStyleClassic]
 en = "EOF Style: Classic"
 zh-hans = "EOF 样式：经典"
 zh-hant = "EOF 樣式：經典"
+
+[ViewEofStyleKs3]
+en = "EOF Style: KS3"
+zh-hans = "EOF 样式：国乔 KS3"
+zh-hant = "EOF 樣式：國喬 KS3"
 
 [ViewGoToFile]
 en = "Go to File…"

@@ -58,6 +58,7 @@ pub(crate) fn command_eof_style_argument(argument: &Option<String>) -> Option<Eo
     match argument.as_deref()?.trim().to_ascii_lowercase().as_str() {
         "original" => Some(EofStyle::Original),
         "classic" => Some(EofStyle::Classic),
+        "ks3" => Some(EofStyle::Ks3),
         _ => None,
     }
 }
@@ -135,6 +136,7 @@ mod tests {
         assert!(
             command_eof_style_argument(&Some("classic".to_string())) == Some(EofStyle::Classic)
         );
+        assert!(command_eof_style_argument(&Some("ks3".to_string())) == Some(EofStyle::Ks3));
         assert!(command_eof_style_argument(&Some("modern".to_string())).is_none());
     }
 

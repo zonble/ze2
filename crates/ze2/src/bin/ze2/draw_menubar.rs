@@ -280,11 +280,13 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
         }
         let next_eof_style = match state.eof_style {
             EofStyle::Original => EofStyle::Classic,
-            EofStyle::Classic => EofStyle::Original,
+            EofStyle::Classic => EofStyle::Ks3,
+            EofStyle::Ks3 => EofStyle::Original,
         };
         let eof_style_label = match state.eof_style {
             EofStyle::Original => loc(LocId::ViewEofStyleOriginal),
             EofStyle::Classic => loc(LocId::ViewEofStyleClassic),
+            EofStyle::Ks3 => loc(LocId::ViewEofStyleKs3),
         };
         if ctx.menubar_menu_button(eof_style_label, 'F', vk::NULL) {
             state.eof_style = next_eof_style;

@@ -35,6 +35,7 @@ pub enum EditorColor {
 pub enum EofStyle {
     Original,
     Classic,
+    Ks3,
 }
 
 struct SettingsCell(SemiRefCell<Settings>);
@@ -157,6 +158,7 @@ impl Settings {
         if let Some(eof_style) = root.get_str("editor.eofStyle") {
             self.eof_style = match eof_style {
                 "classic" => EofStyle::Classic,
+                "ks3" => EofStyle::Ks3,
                 _ => EofStyle::Original,
             };
         }
@@ -235,6 +237,7 @@ impl Settings {
         let value = match style {
             EofStyle::Original => "\"original\"",
             EofStyle::Classic => "\"classic\"",
+            EofStyle::Ks3 => "\"ks3\"",
         };
         let path = Self::write_setting("editor.eofStyle", value)?;
         let settings = &mut *SETTINGS.0.borrow_mut();

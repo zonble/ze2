@@ -484,6 +484,7 @@ mod tests {
             ("set-highlight-current-char true", Command::SetHighlightCurrentChar, "true"),
             ("set-editor-color white-on-blue", Command::SetEditorColor, "white-on-blue"),
             ("set-eof-style classic", Command::SetEofStyle, "classic"),
+            ("set-eof-style ks3", Command::SetEofStyle, "ks3"),
             ("set-encoding UTF-8", Command::SetEncoding, "UTF-8"),
             ("encoding UTF-8 BOM", Command::SetEncoding, "UTF-8 BOM"),
             ("reopen-encoding Big5", Command::ReopenEncoding, "Big5"),

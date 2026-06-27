@@ -218,6 +218,12 @@ enum TextBufferPayload<'a> {
     Textarea(RcTextBuffer, bool, CoordType, CoordType, bool), // tb, show_ruler, word_wrap_column, center_offset, highlight_current_char
 }
 
+#[derive(Clone)]
+enum EofMarker {
+    Text(String),
+    Ks3,
+}
+
 /// In order for the TUI to show the correct Ctrl/Alt/Shift
 /// translations, this struct lets you set them.
 pub struct ModifierTranslations {
@@ -348,7 +354,7 @@ pub struct Tui {
     framebuffer: Framebuffer,
 
     modifier_translations: ModifierTranslations,
-    eof_marker: String,
+    eof_marker: EofMarker,
     floater_default_bg: StraightRgba,
     floater_default_fg: StraightRgba,
     modal_default_bg: StraightRgba,
@@ -427,7 +433,7 @@ impl Tui {
                 alt: "Alt",
                 shift: "Shift",
             },
-            eof_marker: "=== END OF FILE ===".to_string(),
+            eof_marker: EofMarker::Text("=== END OF FILE ===".to_string()),
             floater_default_bg: StraightRgba::zero(),
             floater_default_fg: StraightRgba::zero(),
             modal_default_bg: StraightRgba::zero(),
@@ -479,7 +485,11 @@ impl Tui {
     }
 
     pub fn set_eof_marker(&mut self, text: &str) {
-        self.eof_marker = text.to_string();
+        self.eof_marker = EofMarker::Text(text.to_string());
+    }
+
+    pub fn set_eof_marker_ks3(&mut self) {
+        self.eof_marker = EofMarker::Ks3;
     }
 
     /// Set the default foreground color for floaters (dropdowns, etc.).
@@ -1063,7 +1073,12 @@ impl Tui {
                 }
 
                 if !tc.single_line {
-                    self.render_textarea_eof_marker(&tb, tc.scroll_offset, destination);
+                    self.render_textarea_eof_marker(
+                        &tb,
+                        tc.scroll_offset,
+                        tc.word_wrap_column,
+                        destination,
+                    );
 
                     // Render the scrollbar.
                     let track = Rect {
@@ -1225,6 +1240,7 @@ impl Tui {
         &mut self,
         tb: &TextBuffer,
         scroll_offset: Point,
+        word_wrap_column: CoordType,
         destination: Rect,
     ) {
         let y = tb.visual_line_count() - scroll_offset.y;
@@ -1232,14 +1248,43 @@ impl Tui {
             return;
         }
 
-        let eof_marker = self.eof_marker.clone();
+        let left = destination.left + tb.margin_width() - scroll_offset.x;
+        let right = if word_wrap_column > 0 {
+            (left + word_wrap_column).min(destination.right)
+        } else {
+            destination.right
+        };
+        let eof_marker = self.eof_marker_text(right - left);
 
-        self.framebuffer.replace_text(
-            destination.top + y,
-            destination.left + tb.margin_width() - scroll_offset.x,
-            destination.right,
-            &eof_marker,
-        );
+        self.framebuffer.replace_text(destination.top + y, left, right, &eof_marker);
+    }
+
+    fn eof_marker_text(&self, width: CoordType) -> String {
+        match &self.eof_marker {
+            EofMarker::Text(text) => text.clone(),
+            EofMarker::Ks3 => {
+                const LABEL: &str = "<<  檔    尾  >>";
+                let label_bytes = LABEL.as_bytes();
+                let label_width = unicode::MeasurementConfig::new(&label_bytes)
+                    .goto_offset(label_bytes.len())
+                    .visual_pos
+                    .x;
+                let padding = width - label_width - 2;
+                if padding <= 0 {
+                    return LABEL.to_string();
+                }
+
+                let left = padding / 2;
+                let right = padding - left;
+                let mut marker = String::with_capacity(width.max(0) as usize);
+                marker.extend(std::iter::repeat_n('-', left as usize));
+                marker.push(' ');
+                marker.push_str(LABEL);
+                marker.push(' ');
+                marker.extend(std::iter::repeat_n('-', right as usize));
+                marker
+            }
+        }
     }
 
     fn render_styled_text(
@@ -1601,6 +1646,10 @@ impl<'a> Context<'a, '_> {
 
     pub fn set_eof_marker(&mut self, text: &str) {
         self.tui.set_eof_marker(text);
+    }
+
+    pub fn set_eof_marker_ks3(&mut self) {
+        self.tui.set_eof_marker_ks3();
     }
 
     /// Returns an indexed color from the framebuffer.
