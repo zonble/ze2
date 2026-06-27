@@ -264,24 +264,16 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
                 error_log_add(ctx, state, err);
             }
         }
-        if ctx.menubar_menu_checkbox(
-            loc(LocId::ViewEditorColorOriginal),
-            'O',
-            vk::NULL,
-            state.editor_color == EditorColor::Original,
-        ) {
-            state.editor_color = EditorColor::Original;
-            if let Err(err) = Settings::set_editor_color(state.editor_color) {
-                error_log_add(ctx, state, err);
-            }
-        }
-        if ctx.menubar_menu_checkbox(
-            loc(LocId::ViewEditorColorWhiteOnBlue),
-            'L',
-            vk::NULL,
-            state.editor_color == EditorColor::WhiteOnBlue,
-        ) {
-            state.editor_color = EditorColor::WhiteOnBlue;
+        let next_editor_color = match state.editor_color {
+            EditorColor::Original => EditorColor::WhiteOnBlue,
+            EditorColor::WhiteOnBlue => EditorColor::Original,
+        };
+        let editor_color_label = match state.editor_color {
+            EditorColor::Original => loc(LocId::ViewEditorColorOriginal),
+            EditorColor::WhiteOnBlue => loc(LocId::ViewEditorColorWhiteOnBlue),
+        };
+        if ctx.menubar_menu_button(editor_color_label, 'L', vk::NULL) {
+            state.editor_color = next_editor_color;
             if let Err(err) = Settings::set_editor_color(state.editor_color) {
                 error_log_add(ctx, state, err);
             }
