@@ -153,6 +153,7 @@ pub struct State {
     pub wants_about: bool,
     pub wants_word_count: bool,
     pub wants_help: bool,
+    pub wants_selection_context_menu: bool,
     pub wants_close: bool,
     pub wants_close_after_save: bool,
     pub wants_exit_after_close: bool,
@@ -249,6 +250,7 @@ impl State {
             wants_about: false,
             wants_word_count: false,
             wants_help: false,
+            wants_selection_context_menu: false,
             wants_close: false,
             wants_close_after_save: false,
             wants_exit_after_close: false,
@@ -333,6 +335,7 @@ impl State {
             || self.wants_about
             || self.wants_word_count
             || self.wants_help
+            || self.wants_selection_context_menu
             || self.error_log_count != 0
     }
 }

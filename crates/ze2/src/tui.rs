@@ -222,6 +222,7 @@ enum TextBufferPayload<'a> {
 enum EofMarker {
     Text(String),
     Ks3,
+    Hidden,
 }
 
 /// In order for the TUI to show the correct Ctrl/Alt/Shift
@@ -492,6 +493,10 @@ impl Tui {
         self.eof_marker = EofMarker::Ks3;
     }
 
+    pub fn set_eof_marker_hidden(&mut self) {
+        self.eof_marker = EofMarker::Hidden;
+    }
+
     /// Set the default foreground color for floaters (dropdowns, etc.).
     pub fn set_floater_default_fg(&mut self, color: StraightRgba) {
         self.floater_default_fg = color;
@@ -758,6 +763,7 @@ impl Tui {
             input_scroll_delta,
             input_consumed,
             context_menu_requested: false,
+            selection_context_menu_requested: false,
 
             tree,
             last_modal: None,
@@ -1243,6 +1249,10 @@ impl Tui {
         word_wrap_column: CoordType,
         destination: Rect,
     ) {
+        if matches!(self.eof_marker, EofMarker::Hidden) {
+            return;
+        }
+
         let y = tb.visual_line_count() - scroll_offset.y;
         if y < 0 || y >= destination.height() {
             return;
@@ -1262,6 +1272,7 @@ impl Tui {
     fn eof_marker_text(&self, width: CoordType) -> String {
         match &self.eof_marker {
             EofMarker::Text(text) => text.clone(),
+            EofMarker::Hidden => String::new(),
             EofMarker::Ks3 => {
                 const LABEL: &str = "<<  檔    尾  >>";
                 let label_bytes = LABEL.as_bytes();
@@ -1609,6 +1620,7 @@ pub struct Context<'a, 'input> {
     input_scroll_delta: Point,
     input_consumed: bool,
     context_menu_requested: bool,
+    selection_context_menu_requested: bool,
 
     tree: Tree<'a>,
     last_modal: Option<&'a NodeCell<'a>>,
@@ -1650,6 +1662,10 @@ impl<'a> Context<'a, '_> {
 
     pub fn set_eof_marker_ks3(&mut self) {
         self.tui.set_eof_marker_ks3();
+    }
+
+    pub fn set_eof_marker_hidden(&mut self) {
+        self.tui.set_eof_marker_hidden();
     }
 
     /// Returns an indexed color from the framebuffer.
@@ -2008,6 +2024,19 @@ impl<'a> Context<'a, '_> {
 
     pub fn context_menu_requested(&self) -> bool {
         self.context_menu_requested
+    }
+
+    pub fn selection_context_menu_requested(&self) -> bool {
+        self.selection_context_menu_requested
+    }
+
+    fn request_editor_context_menu(&mut self, has_selection: bool) {
+        if has_selection {
+            self.selection_context_menu_requested = true;
+        } else {
+            self.context_menu_requested = true;
+        }
+        self.set_input_consumed();
     }
 
     #[inline]
@@ -2626,11 +2655,10 @@ impl<'a> Context<'a, '_> {
                     }
                 } else {
                     if !single_line
-                        && self.tui.mouse_state == InputMouseState::Right
-                        && !tb.has_selection()
+                        && (self.tui.mouse_state == InputMouseState::Right
+                            || self.keyboard_input() == Some(vk::APPS))
                     {
-                        self.context_menu_requested = true;
-                        self.set_input_consumed();
+                        self.request_editor_context_menu(tb.has_selection());
                         return false;
                     }
 

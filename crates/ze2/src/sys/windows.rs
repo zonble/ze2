@@ -19,6 +19,12 @@ use windows_sys::core::*;
 
 use crate::helpers::*;
 
+const VK_APPS: u16 = 0x5D;
+const VK_APPS_CSI_U: &[u16] = &[
+    0x1B, // ESC
+    '[' as u16, '9' as u16, '3' as u16, 'u' as u16,
+];
+
 macro_rules! w_env {
     ($s:literal) => {{
         const INPUT: &[u8] = env!($s).as_bytes();
@@ -338,6 +344,11 @@ pub fn read_stdin(arena: &Arena, mut timeout: time::Duration) -> Option<BString<
                     if event.bKeyDown != 0 && ch != 0 {
                         utf16_buf[utf16_buf_len] = MaybeUninit::new(ch);
                         utf16_buf_len += 1;
+                    } else if event.bKeyDown != 0 && event.wVirtualKeyCode == VK_APPS {
+                        for ch in VK_APPS_CSI_U {
+                            utf16_buf[utf16_buf_len] = MaybeUninit::new(*ch);
+                            utf16_buf_len += 1;
+                        }
                     }
                 }
                 Console::WINDOW_BUFFER_SIZE_EVENT => {

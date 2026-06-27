@@ -36,6 +36,7 @@ pub enum EofStyle {
     Original,
     Classic,
     Ks3,
+    Hidden,
 }
 
 struct SettingsCell(SemiRefCell<Settings>);
@@ -159,6 +160,7 @@ impl Settings {
             self.eof_style = match eof_style {
                 "classic" => EofStyle::Classic,
                 "ks3" => EofStyle::Ks3,
+                "hidden" | "none" | "off" => EofStyle::Hidden,
                 _ => EofStyle::Original,
             };
         }
@@ -238,6 +240,7 @@ impl Settings {
             EofStyle::Original => "\"original\"",
             EofStyle::Classic => "\"classic\"",
             EofStyle::Ks3 => "\"ks3\"",
+            EofStyle::Hidden => "\"hidden\"",
         };
         let path = Self::write_setting("editor.eofStyle", value)?;
         let settings = &mut *SETTINGS.0.borrow_mut();

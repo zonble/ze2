@@ -150,6 +150,12 @@ term.onData((data) => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (event.key === "ContextMenu") {
+    event.preventDefault();
+    sendInput("\x1b[93u");
+    return;
+  }
+
   if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
     return;
   }

@@ -10,6 +10,7 @@ use ze2::icu;
 use ze2::input::{kbmod, vk};
 use ze2::tui::*;
 
+use crate::commands::{Command, execute_command};
 use crate::localization::*;
 use crate::settings::EditorColor;
 use crate::state::*;
@@ -64,7 +65,11 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
             ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightWhite));
         }
         ctx.inherit_focus();
-        if ctx.context_menu_requested() {
+        if ctx.selection_context_menu_requested() {
+            state.wants_selection_context_menu = true;
+            state.wants_editor_focus = false;
+            ctx.needs_rerender();
+        } else if ctx.context_menu_requested() {
             state.wants_menubar_focus = true;
             state.wants_editor_focus = false;
         }
@@ -78,6 +83,47 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
     }
 
     ctx.attr_intrinsic_size(Size { width: 0, height: size.height - height_reduction });
+}
+
+pub fn draw_selection_context_menu(ctx: &mut Context, state: &mut State) {
+    let mut done = false;
+    let can_paste = !ctx.clipboard_ref().read().is_empty();
+
+    ctx.modal_begin("selection-context-menu", loc(LocId::Edit));
+    {
+        ctx.block_begin("choices");
+        ctx.inherit_focus();
+        ctx.attr_padding(Rect::three(1, 2, 1));
+        ctx.attr_intrinsic_size(Size { width: 16, height: 3 });
+        {
+            let item_style = ButtonStyle::default().bracketed(false);
+            if ctx.button("cut", loc(LocId::EditCut), item_style) {
+                execute_command(ctx, state, Command::Cut);
+                done = true;
+            }
+            if ctx.button("copy", loc(LocId::EditCopy), item_style) {
+                execute_command(ctx, state, Command::Copy);
+                done = true;
+            }
+            if can_paste {
+                if ctx.button("paste", loc(LocId::EditPaste), item_style) {
+                    execute_command(ctx, state, Command::Paste);
+                    done = true;
+                }
+            } else {
+                ctx.label("paste-disabled", loc(LocId::EditPaste));
+                ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightBlack));
+            }
+        }
+        ctx.block_end();
+    }
+    done |= ctx.modal_end();
+
+    if done {
+        state.wants_selection_context_menu = false;
+        state.wants_editor_focus = true;
+        ctx.needs_rerender();
+    }
 }
 
 fn draw_search(ctx: &mut Context, state: &mut State) {

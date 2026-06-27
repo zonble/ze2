@@ -281,12 +281,14 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
         let next_eof_style = match state.eof_style {
             EofStyle::Original => EofStyle::Classic,
             EofStyle::Classic => EofStyle::Ks3,
-            EofStyle::Ks3 => EofStyle::Original,
+            EofStyle::Ks3 => EofStyle::Hidden,
+            EofStyle::Hidden => EofStyle::Original,
         };
         let eof_style_label = match state.eof_style {
             EofStyle::Original => loc(LocId::ViewEofStyleOriginal),
             EofStyle::Classic => loc(LocId::ViewEofStyleClassic),
             EofStyle::Ks3 => loc(LocId::ViewEofStyleKs3),
+            EofStyle::Hidden => loc(LocId::ViewEofStyleHidden),
         };
         if ctx.menubar_menu_button(eof_style_label, 'F', vk::NULL) {
             state.eof_style = next_eof_style;
@@ -307,6 +309,9 @@ fn draw_menu_utils(ctx: &mut Context, state: &mut State) {
 }
 
 fn draw_menu_help(ctx: &mut Context, state: &mut State) {
+    if ctx.menubar_menu_button(loc(LocId::HelpCommands), 'C', vk::NULL) {
+        execute_command(ctx, state, Command::Help);
+    }
     if ctx.menubar_menu_button(loc(LocId::HelpAbout), 'A', vk::NULL) {
         execute_command(ctx, state, Command::About);
     }

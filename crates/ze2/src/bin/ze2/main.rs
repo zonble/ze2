@@ -360,6 +360,9 @@ fn draw(ctx: &mut Context, state: &mut State) {
     if state.wants_goto {
         draw_goto_menu(ctx, state);
     }
+    if state.wants_selection_context_menu {
+        draw_selection_context_menu(ctx, state);
+    }
     if state.wants_file_picker != StateFilePicker::None {
         draw_file_picker(ctx, state);
     }
@@ -413,6 +416,7 @@ fn set_eof_marker_for_style(tui: &mut Tui, style: EofStyle) {
         EofStyle::Original => tui.set_eof_marker(loc(LocId::EndOfFileMarker)),
         EofStyle::Classic => tui.set_eof_marker("迋═ Bottom of File 迋═"),
         EofStyle::Ks3 => tui.set_eof_marker_ks3(),
+        EofStyle::Hidden => tui.set_eof_marker_hidden(),
     }
 }
 
@@ -421,6 +425,7 @@ fn context_set_eof_marker_for_style(ctx: &mut Context, style: EofStyle) {
         EofStyle::Original => ctx.set_eof_marker(loc(LocId::EndOfFileMarker)),
         EofStyle::Classic => ctx.set_eof_marker("迋═ Bottom of File 迋═"),
         EofStyle::Ks3 => ctx.set_eof_marker_ks3(),
+        EofStyle::Hidden => ctx.set_eof_marker_hidden(),
     }
 }
 

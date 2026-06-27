@@ -110,7 +110,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: set_eof_style,
-        argument_hint: Some("original|classic|ks3"),
+        argument_hint: Some("original|classic|ks3|hidden"),
     },
 ];
 

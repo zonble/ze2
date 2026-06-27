@@ -59,6 +59,7 @@ pub(crate) fn command_eof_style_argument(argument: &Option<String>) -> Option<Eo
         "original" => Some(EofStyle::Original),
         "classic" => Some(EofStyle::Classic),
         "ks3" => Some(EofStyle::Ks3),
+        "hidden" | "none" | "off" => Some(EofStyle::Hidden),
         _ => None,
     }
 }
@@ -137,6 +138,9 @@ mod tests {
             command_eof_style_argument(&Some("classic".to_string())) == Some(EofStyle::Classic)
         );
         assert!(command_eof_style_argument(&Some("ks3".to_string())) == Some(EofStyle::Ks3));
+        assert!(command_eof_style_argument(&Some("hidden".to_string())) == Some(EofStyle::Hidden));
+        assert!(command_eof_style_argument(&Some("none".to_string())) == Some(EofStyle::Hidden));
+        assert!(command_eof_style_argument(&Some("off".to_string())) == Some(EofStyle::Hidden));
         assert!(command_eof_style_argument(&Some("modern".to_string())).is_none());
     }
 

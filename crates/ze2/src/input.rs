@@ -130,6 +130,8 @@ pub mod vk {
     pub const RIGHT: InputKey = InputKey::new(0x27);
     pub const DOWN: InputKey = InputKey::new(0x28);
 
+    pub const APPS: InputKey = InputKey::new(0x5D);
+
     pub const INSERT: InputKey = InputKey::new(0x2D);
     pub const DELETE: InputKey = InputKey::new(0x2E);
 
