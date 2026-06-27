@@ -15,13 +15,17 @@ use crate::state::*;
 
 pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
     let mut should_submit_input = false;
+    let mut has_error = !state.command_bar_error.is_empty();
 
     ctx.table_begin("commandbar");
     ctx.attr_focus_well();
     ctx.attr_background_rgba(ctx.indexed(IndexedColor::Green));
     ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightWhite));
     ctx.table_set_cell_gap(Size { width: 1, height: 0 });
-    ctx.attr_intrinsic_size(Size { width: COORD_TYPE_SAFE_MAX, height: 1 });
+    ctx.attr_intrinsic_size(Size {
+        width: COORD_TYPE_SAFE_MAX,
+        height: 1,
+    });
     ctx.attr_padding(Rect::two(0, 1));
     {
         if ctx.contains_focus()
@@ -39,7 +43,10 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
         ctx.table_next_row();
         ctx.label("prompt", ">");
 
-        ctx.editline("input", &mut state.command_bar_input);
+        if ctx.editline("input", &mut state.command_bar_input) {
+            state.command_bar_error.clear();
+            has_error = false;
+        }
         ctx.attr_background_rgba(ctx.indexed(IndexedColor::Green));
         ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightWhite));
         ctx.attr_intrinsic_size(Size { width: COORD_TYPE_SAFE_MAX, height: 1 });
@@ -117,11 +124,8 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
                         ctx.next_block_id_mixin(idx as u64);
                         ctx.styled_label_begin("suggestion");
                         if is_selected {
-                            ctx.attr_background_rgba(ctx.indexed_alpha(
-                                IndexedColor::Foreground,
-                                1,
-                                4,
-                            ));
+                            ctx.attr_background_rgba(ctx.indexed(IndexedColor::White));
+                            ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::Black));
                         }
                         ctx.styled_label_add_text("  ");
                         let text = suggestion.display_text();
@@ -157,9 +161,24 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
             }
         }
 
-        if !state.command_bar_error.is_empty() {
-            ctx.label("error", &state.command_bar_error);
-            ctx.attr_overflow(Overflow::TruncateTail);
+        if has_error {
+            ctx.block_begin("error_box");
+            ctx.attr_float(FloatSpec {
+                anchor: Anchor::Parent,
+                gravity_x: 0.0,
+                gravity_y: 1.0,
+                offset_x: 0.0,
+                offset_y: 0.0,
+            });
+            ctx.attr_border();
+            ctx.attr_background_rgba(ctx.indexed(IndexedColor::Red));
+            ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightWhite));
+            ctx.attr_padding(Rect::two(0, 1));
+            {
+                ctx.label("error", &state.command_bar_error);
+                ctx.attr_overflow(Overflow::TruncateTail);
+            }
+            ctx.block_end();
         }
     }
     ctx.table_end();

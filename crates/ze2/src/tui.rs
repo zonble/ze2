@@ -2410,6 +2410,7 @@ impl<'a> Context<'a, '_> {
     }
 
     /// Creates a text area.
+    /// Returns true if the text contents changed.
     pub fn textarea(
         &mut self,
         classname: &'static str,
@@ -2418,7 +2419,7 @@ impl<'a> Context<'a, '_> {
         word_wrap_column: CoordType,
         center_offset: CoordType,
         highlight_current_char: bool,
-    ) {
+    ) -> bool {
         self.textarea_internal(
             classname,
             TextBufferPayload::Textarea(
@@ -2428,7 +2429,7 @@ impl<'a> Context<'a, '_> {
                 center_offset,
                 highlight_current_char,
             ),
-        );
+        )
     }
 
     fn textarea_internal(&mut self, classname: &'static str, payload: TextBufferPayload) -> bool {

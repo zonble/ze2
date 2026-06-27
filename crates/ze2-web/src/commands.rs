@@ -3,6 +3,7 @@
 
 use ze2::tui::Context;
 
+use crate::localization::{loc, LocId};
 use crate::request_host_clipboard_read;
 use crate::state::State;
 
@@ -72,8 +73,13 @@ pub fn execute_command_invocation(
     invocation: CommandInvocation,
 ) {
     if matches!(invocation.command, Command::Exit | Command::CloseFileAndExitIfLast) {
-        return;
+        if state.documents.len() <= 1 {
+            state.command_bar_error = loc(LocId::WebCannotExitLastDocument).to_string();
+            ctx.needs_rerender();
+            return;
+        }
     }
+
     if invocation.command == Command::Paste {
         request_host_clipboard_read();
         return;
