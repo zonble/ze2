@@ -45,13 +45,12 @@ Currently supported:
 - resize events
 - basic text input
 - basic editing keys such as Backspace and arrows
-- browser open/save flow for a single text buffer
+- browser open/save flow for multiple editor buffers
 - browser IndexedDB autosave/restore for editor buffers
 
 Not yet supported:
 
 - Native ze2 `main.rs`
-- Multi-document editor state
 - Directory browsing
 - OPFS workspace persistence
 - Full VT input parsing

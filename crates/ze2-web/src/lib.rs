@@ -174,23 +174,39 @@ impl Engine {
         self.frame(Some(Input::Paste(text.to_vec())));
     }
 
-    fn set_document(&mut self, text: &str, name: Option<&str>) {
+    fn replace_document(&mut self, text: &str, name: Option<&str>) {
         while self.state.documents.len() != 0 {
             self.state.documents.remove_active();
         }
 
-        if let Ok(doc) = self.state.documents.add_untitled() {
-            if let Some(name) = name
-                && !name.is_empty()
-            {
-                doc.filename = name.to_string();
-            }
+        self.add_document(text, name, false);
+    }
 
-            let mut tb = doc.buffer.borrow_mut();
-            tb.write_raw(text.as_bytes());
-            tb.cursor_move_to_logical(Point::default());
-            tb.mark_as_clean();
+    fn add_document(&mut self, text: &str, name: Option<&str>, replace_pristine_untitled: bool) {
+        if replace_pristine_untitled
+            && let Some(doc) = self.state.documents.active()
+            && doc.path.is_none()
+            && doc.file_id.is_none()
+            && !doc.buffer.borrow().is_dirty()
+            && doc.buffer.borrow().text_length() == 0
+        {
+            self.state.documents.remove_active();
         }
+
+        let Ok(doc) = self.state.documents.add_untitled() else {
+            return;
+        };
+
+        if let Some(name) = name
+            && !name.is_empty()
+        {
+            doc.filename = name.to_string();
+        }
+
+        let mut tb = doc.buffer.borrow_mut();
+        tb.write_raw(text.as_bytes());
+        tb.cursor_move_to_logical(Point::default());
+        tb.mark_as_clean();
 
         self.state.wants_editor_focus = true;
         self.frame(None);
@@ -463,11 +479,11 @@ pub unsafe extern "C" fn ze2_web_set_document(ptr: *const u8, len: usize) {
     }
     let bytes = unsafe { slice::from_raw_parts(ptr, len) };
     let text = String::from_utf8_lossy(bytes);
-    with_engine((), |engine| engine.set_document(&text, None));
+    with_engine((), |engine| engine.replace_document(&text, None));
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ze2_web_set_document_with_name(
+pub unsafe extern "C" fn ze2_web_replace_document_with_name(
     text_ptr: *const u8,
     text_len: usize,
     name_ptr: *const u8,
@@ -481,7 +497,37 @@ pub unsafe extern "C" fn ze2_web_set_document_with_name(
         if name_ptr.is_null() { &[] } else { unsafe { slice::from_raw_parts(name_ptr, name_len) } };
     let text = String::from_utf8_lossy(text_bytes);
     let name = String::from_utf8_lossy(name_bytes);
-    with_engine((), |engine| engine.set_document(&text, Some(&name)));
+    with_engine((), |engine| engine.replace_document(&text, Some(&name)));
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ze2_web_set_document_with_name(
+    text_ptr: *const u8,
+    text_len: usize,
+    name_ptr: *const u8,
+    name_len: usize,
+) {
+    unsafe {
+        ze2_web_replace_document_with_name(text_ptr, text_len, name_ptr, name_len);
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ze2_web_add_document_with_name(
+    text_ptr: *const u8,
+    text_len: usize,
+    name_ptr: *const u8,
+    name_len: usize,
+) {
+    if text_ptr.is_null() {
+        return;
+    }
+    let text_bytes = unsafe { slice::from_raw_parts(text_ptr, text_len) };
+    let name_bytes =
+        if name_ptr.is_null() { &[] } else { unsafe { slice::from_raw_parts(name_ptr, name_len) } };
+    let text = String::from_utf8_lossy(text_bytes);
+    let name = String::from_utf8_lossy(name_bytes);
+    with_engine((), |engine| engine.add_document(&text, Some(&name), true));
 }
 
 #[unsafe(no_mangle)]

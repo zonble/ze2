@@ -293,7 +293,7 @@ async function openBrowserFile() {
     types: [{ description: "Text", accept: { "text/*": [".txt", ".md", ".rs"] } }],
   });
   const text = await (await file.getFile()).text();
-  setDocumentText(text, file.name || DEFAULT_BUFFER_NAME);
+  addDocumentText(text, file.name || DEFAULT_BUFFER_NAME);
   term.clear();
   flush();
   await autosaveNow().catch(reportAutosaveError);
@@ -312,24 +312,41 @@ function saveBrowserFile() {
 }
 
 async function restoreAutosavedBuffer() {
-  let saved;
+  let buffers = [];
+  let lastActiveBufferId = "";
   try {
     const meta = await getAutosavedBuffer(AUTOSAVE_META_ID);
-    saved = await getAutosavedBuffer(meta?.lastActiveBufferId || bufferIdForName(DEFAULT_BUFFER_NAME));
+    lastActiveBufferId = meta?.lastActiveBufferId || "";
+    buffers = await getAllAutosavedBuffers();
   } catch (error) {
     reportAutosaveError(error);
   }
 
-  if (!saved) {
+  if (buffers.length === 0) {
     lastAutosavedId = bufferIdForName(readActiveBufferName());
     lastAutosavedText = readCurrentDocumentText();
     return;
   }
 
-  const text = saved.text || "";
-  setDocumentText(text, saved.name || saved.id || DEFAULT_BUFFER_NAME);
+  const activeIndex = buffers.findIndex((buffer) => buffer.id === lastActiveBufferId);
+  if (activeIndex >= 0) {
+    buffers.push(buffers.splice(activeIndex, 1)[0]);
+  } else {
+    buffers.sort((left, right) => (left.updatedAt || 0) - (right.updatedAt || 0));
+  }
+
+  for (const [index, buffer] of buffers.entries()) {
+    const text = buffer.text || "";
+    const name = buffer.name || buffer.id || DEFAULT_BUFFER_NAME;
+    if (index === 0) {
+      replaceDocumentText(text, name);
+    } else {
+      addDocumentText(text, name);
+    }
+  }
+
   lastAutosavedId = bufferIdForName(readActiveBufferName());
-  lastAutosavedText = text;
+  lastAutosavedText = readCurrentDocumentText();
 }
 
 function scheduleAutosave() {
@@ -391,13 +408,25 @@ function readActiveBufferName() {
   return decoder.decode(readBytes(ptr, len)) || DEFAULT_BUFFER_NAME;
 }
 
-function setDocumentText(text, name) {
+function replaceDocumentText(text, name) {
+  writeDocumentText(text, name, "replace");
+}
+
+function addDocumentText(text, name) {
+  writeDocumentText(text, name, "add");
+}
+
+function writeDocumentText(text, name, mode) {
   const textBytes = encoder.encode(text);
   const nameBytes = encoder.encode(name);
   const doc = writeBytes(textBytes);
   const docName = writeBytes(nameBytes);
   try {
-    if (api.ze2_web_set_document_with_name) {
+    if (mode === "add" && api.ze2_web_add_document_with_name) {
+      api.ze2_web_add_document_with_name(doc.ptr, doc.len, docName.ptr, docName.len);
+    } else if (api.ze2_web_replace_document_with_name) {
+      api.ze2_web_replace_document_with_name(doc.ptr, doc.len, docName.ptr, docName.len);
+    } else if (api.ze2_web_set_document_with_name) {
       api.ze2_web_set_document_with_name(doc.ptr, doc.len, docName.ptr, docName.len);
     } else {
       api.ze2_web_set_document(doc.ptr, doc.len);
@@ -438,6 +467,22 @@ async function getAutosavedBuffer(id) {
       const tx = db.transaction(AUTOSAVE_STORE_NAME, "readonly");
       const request = tx.objectStore(AUTOSAVE_STORE_NAME).get(id);
       request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function getAllAutosavedBuffers() {
+  const db = await openAutosaveDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(AUTOSAVE_STORE_NAME, "readonly");
+      const request = tx.objectStore(AUTOSAVE_STORE_NAME).getAll();
+      request.onsuccess = () => {
+        resolve((request.result || []).filter((buffer) => buffer.id !== AUTOSAVE_META_ID));
+      };
       request.onerror = () => reject(request.error);
     });
   } finally {
