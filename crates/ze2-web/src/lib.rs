@@ -54,6 +54,7 @@ struct Engine {
     input_parser: input::Parser,
     output: Vec<u8>,
     document: Vec<u8>,
+    document_name: Vec<u8>,
     host_action: HostAction,
 }
 
@@ -108,6 +109,7 @@ impl Engine {
             input_parser: input::Parser::new(),
             output: Vec::new(),
             document: Vec::new(),
+            document_name: Vec::new(),
             host_action: HostAction::None,
         };
         engine.frame(Some(Input::Resize(Size {
@@ -172,12 +174,18 @@ impl Engine {
         self.frame(Some(Input::Paste(text.to_vec())));
     }
 
-    fn set_document(&mut self, text: &str) {
+    fn set_document(&mut self, text: &str, name: Option<&str>) {
         while self.state.documents.len() != 0 {
             self.state.documents.remove_active();
         }
 
         if let Ok(doc) = self.state.documents.add_untitled() {
+            if let Some(name) = name
+                && !name.is_empty()
+            {
+                doc.filename = name.to_string();
+            }
+
             let mut tb = doc.buffer.borrow_mut();
             tb.write_raw(text.as_bytes());
             tb.cursor_move_to_logical(Point::default());
@@ -220,9 +228,12 @@ impl Engine {
 
     fn refresh_document_cache(&mut self) {
         self.document.clear();
+        self.document_name.clear();
         let Some(doc) = self.state.documents.active() else {
             return;
         };
+
+        self.document_name.extend_from_slice(doc.filename.as_bytes());
 
         let tb = doc.buffer.borrow();
         let mut off = 0;
@@ -452,7 +463,25 @@ pub unsafe extern "C" fn ze2_web_set_document(ptr: *const u8, len: usize) {
     }
     let bytes = unsafe { slice::from_raw_parts(ptr, len) };
     let text = String::from_utf8_lossy(bytes);
-    with_engine((), |engine| engine.set_document(&text));
+    with_engine((), |engine| engine.set_document(&text, None));
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ze2_web_set_document_with_name(
+    text_ptr: *const u8,
+    text_len: usize,
+    name_ptr: *const u8,
+    name_len: usize,
+) {
+    if text_ptr.is_null() {
+        return;
+    }
+    let text_bytes = unsafe { slice::from_raw_parts(text_ptr, text_len) };
+    let name_bytes =
+        if name_ptr.is_null() { &[] } else { unsafe { slice::from_raw_parts(name_ptr, name_len) } };
+    let text = String::from_utf8_lossy(text_bytes);
+    let name = String::from_utf8_lossy(name_bytes);
+    with_engine((), |engine| engine.set_document(&text, Some(&name)));
 }
 
 #[unsafe(no_mangle)]
@@ -529,6 +558,16 @@ pub extern "C" fn ze2_web_document_ptr() -> *const u8 {
 #[unsafe(no_mangle)]
 pub extern "C" fn ze2_web_document_len() -> usize {
     with_engine(0, |engine| engine.document.len())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_document_name_ptr() -> *const u8 {
+    with_engine(ptr::null(), |engine| engine.document_name.as_ptr())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ze2_web_document_name_len() -> usize {
+    with_engine(0, |engine| engine.document_name.len())
 }
 
 #[unsafe(no_mangle)]

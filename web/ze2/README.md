@@ -42,6 +42,7 @@ Currently supported:
 - basic text input
 - basic editing keys such as Backspace and arrows
 - browser open/save flow for a single text buffer
+- browser IndexedDB autosave/restore for editor buffers
 
 Not yet supported:
 
@@ -52,4 +53,3 @@ Not yet supported:
 - Full VT input parsing
 - Clipboard integration
 - GitHub Pages build automation
-
