@@ -140,7 +140,7 @@ pub fn generate(definitions: &str) -> String {
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum LocId {",
+pub enum LocId {{",
         );
 
         for (k, _) in translations.iter() {
