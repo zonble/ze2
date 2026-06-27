@@ -6,7 +6,6 @@ use std::num::ParseIntError;
 use stdext::string_from_utf8_lossy_owned;
 use ze2::framebuffer::IndexedColor;
 use ze2::helpers::*;
-use ze2::icu;
 use ze2::input::{kbmod, vk};
 use ze2::tui::*;
 
@@ -127,12 +126,6 @@ pub fn draw_selection_context_menu(ctx: &mut Context, state: &mut State) {
 }
 
 fn draw_search(ctx: &mut Context, state: &mut State) {
-    if let Err(err) = icu::init() {
-        error_log_add(ctx, state, err.into());
-        state.wants_search.kind = StateSearchKind::Disabled;
-        return;
-    }
-
     let Some(doc) = state.documents.active() else {
         state.wants_search.kind = StateSearchKind::Hidden;
         return;
@@ -208,38 +201,52 @@ fn draw_search(ctx: &mut Context, state: &mut State) {
         ctx.table_begin("options");
         ctx.table_set_cell_gap(Size { width: 2, height: 0 });
         {
-            let mut change = false;
-            let mut change_action = Some(SearchAction::Search);
-
             ctx.table_next_row();
-
-            change |= ctx.checkbox(
-                "match-case",
-                loc(LocId::SearchMatchCase),
-                &mut state.search_options.match_case,
-            );
-            change |= ctx.checkbox(
-                "whole-word",
-                loc(LocId::SearchWholeWord),
-                &mut state.search_options.whole_word,
-            );
-            change |= ctx.checkbox(
-                "use-regex",
-                loc(LocId::SearchUseRegex),
-                &mut state.search_options.use_regex,
-            );
-            if state.wants_search.kind == StateSearchKind::Replace
-                && ctx.button("replace-all", loc(LocId::SearchReplaceAll), ButtonStyle::default())
+            #[cfg(target_arch = "wasm32")]
             {
-                change = true;
-                change_action = Some(SearchAction::ReplaceAll);
+                ctx.label("web-advanced-search", loc(LocId::SearchAdvancedUnavailableWeb));
+                ctx.label("web-advanced-search-separator", "|");
+                if ctx.button("close", loc(LocId::SearchClose), ButtonStyle::default()) {
+                    state.wants_search.kind = StateSearchKind::Hidden;
+                }
             }
-            if ctx.button("close", loc(LocId::SearchClose), ButtonStyle::default()) {
-                state.wants_search.kind = StateSearchKind::Hidden;
-            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let mut change = false;
+                let mut change_action = Some(SearchAction::Search);
 
-            if change {
-                action = change_action;
+                change |= ctx.checkbox(
+                    "match-case",
+                    loc(LocId::SearchMatchCase),
+                    &mut state.search_options.match_case,
+                );
+                change |= ctx.checkbox(
+                    "whole-word",
+                    loc(LocId::SearchWholeWord),
+                    &mut state.search_options.whole_word,
+                );
+                change |= ctx.checkbox(
+                    "use-regex",
+                    loc(LocId::SearchUseRegex),
+                    &mut state.search_options.use_regex,
+                );
+                if state.wants_search.kind == StateSearchKind::Replace
+                    && ctx.button(
+                        "replace-all",
+                        loc(LocId::SearchReplaceAll),
+                        ButtonStyle::default(),
+                    )
+                {
+                    change = true;
+                    change_action = Some(SearchAction::ReplaceAll);
+                }
+                if ctx.button("close", loc(LocId::SearchClose), ButtonStyle::default()) {
+                    state.wants_search.kind = StateSearchKind::Hidden;
+                }
+
+                if change {
+                    action = change_action;
+                }
             }
         }
         ctx.table_end();
@@ -262,7 +269,7 @@ pub fn search_execute(ctx: &mut Context, state: &mut State, action: SearchAction
         return;
     };
 
-    state.search_success = match action {
+    let result = match action {
         SearchAction::Search => {
             doc.buffer.borrow_mut().find_and_select(&state.search_needle, state.search_options)
         }
@@ -276,8 +283,11 @@ pub fn search_execute(ctx: &mut Context, state: &mut State, action: SearchAction
             state.search_options,
             state.search_replacement.as_bytes(),
         ),
+    };
+    state.search_success = result.is_ok();
+    if let Err(err) = result {
+        error_log_add(ctx, state, err.into());
     }
-    .is_ok();
 
     ctx.needs_rerender();
 }

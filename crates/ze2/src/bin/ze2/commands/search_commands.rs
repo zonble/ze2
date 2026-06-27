@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use ze2::icu;
 use ze2::tui::Context;
 
 use super::arguments::{command_replace_arguments, command_string_argument};
@@ -42,12 +41,7 @@ fn find(ctx: &mut Context, state: &mut State, args: CommandArgs) {
             if args.focus_target == CommandFocusTarget::SearchPanel {
                 state.wants_editor_focus = false;
             }
-            if let Err(err) = icu::init() {
-                error_log_add(ctx, state, err.into());
-                state.wants_search.kind = StateSearchKind::Disabled;
-            } else {
-                search_execute(ctx, state, SearchAction::Search);
-            }
+            search_execute(ctx, state, SearchAction::Search);
         } else {
             state.wants_search.focus = true;
             state.wants_editor_focus = false;
@@ -65,12 +59,7 @@ fn replace(ctx: &mut Context, state: &mut State, args: CommandArgs) {
             if args.focus_target == CommandFocusTarget::SearchPanel {
                 state.wants_editor_focus = false;
             }
-            if let Err(err) = icu::init() {
-                error_log_add(ctx, state, err.into());
-                state.wants_search.kind = StateSearchKind::Disabled;
-            } else {
-                search_execute(ctx, state, SearchAction::Replace);
-            }
+            search_execute(ctx, state, SearchAction::Replace);
         } else {
             state.wants_search.focus = true;
             state.wants_editor_focus = false;

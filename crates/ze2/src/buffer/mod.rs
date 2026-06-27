@@ -1285,6 +1285,12 @@ impl TextBuffer {
 
     /// Find the next occurrence of the given `pattern` and select it.
     pub fn find_and_select(&mut self, pattern: &str, options: SearchOptions) -> icu::Result<()> {
+        if Self::find_should_use_literal_fallback(options) {
+            self.search = None;
+            self.find_and_select_literal(pattern, options);
+            return Ok(());
+        }
+
         if let Some(search) = &mut self.search {
             let search = search.get_mut();
             // When the search input changes we must reset the search.
@@ -1343,6 +1349,12 @@ impl TextBuffer {
         options: SearchOptions,
         replacement: &[u8],
     ) -> icu::Result<()> {
+        if Self::find_should_use_literal_fallback(options) {
+            self.search = None;
+            self.find_and_replace_literal(pattern, options, replacement);
+            return Ok(());
+        }
+
         // Editors traditionally replace the previous search hit, not the next possible one.
         if let Some(search) = &self.search {
             let search = unsafe { &mut *search.get() };
@@ -1374,6 +1386,12 @@ impl TextBuffer {
         options: SearchOptions,
         replacement: &[u8],
     ) -> icu::Result<()> {
+        if Self::find_should_use_literal_fallback(options) {
+            self.search = None;
+            self.find_and_replace_all_literal(pattern, options, replacement);
+            return Ok(());
+        }
+
         self.edit_begin_grouping();
 
         let scratch = scratch_arena(None);
@@ -1406,6 +1424,140 @@ impl TextBuffer {
 
         self.edit_end_grouping();
         Ok(())
+    }
+
+    fn find_should_use_literal_fallback(options: SearchOptions) -> bool {
+        !options.use_regex
+            && !options.whole_word
+            && matches!(icu::init(), Err(err) if err == icu::ICU_MISSING_ERROR)
+    }
+
+    fn find_and_select_literal(&mut self, pattern: &str, options: SearchOptions) {
+        if pattern.is_empty() {
+            self.clear_selection();
+            return;
+        }
+
+        if let Some(range) = self.find_literal_range_from(
+            pattern.as_bytes(),
+            options.match_case,
+            self.cursor.offset,
+            true,
+        ) {
+            self.find_select_literal_range(range);
+        } else {
+            self.set_selection(None);
+        }
+    }
+
+    fn find_and_replace_literal(
+        &mut self,
+        pattern: &str,
+        options: SearchOptions,
+        replacement: &[u8],
+    ) {
+        if pattern.is_empty() {
+            return;
+        }
+
+        if self.selection_matches_literal(pattern.as_bytes(), options.match_case) {
+            self.write_raw(replacement);
+        }
+
+        self.find_and_select_literal(pattern, options);
+    }
+
+    fn find_and_replace_all_literal(
+        &mut self,
+        pattern: &str,
+        options: SearchOptions,
+        replacement: &[u8],
+    ) {
+        if pattern.is_empty() {
+            return;
+        }
+
+        self.edit_begin_grouping();
+        let mut offset = 0;
+        while let Some(range) =
+            self.find_literal_range_from(pattern.as_bytes(), options.match_case, offset, false)
+        {
+            self.find_select_literal_range(range);
+            self.write_raw(replacement);
+            offset = self.active_edit_off;
+        }
+        self.edit_end_grouping();
+    }
+
+    fn selection_matches_literal(&self, needle: &[u8], match_case: bool) -> bool {
+        let Some((beg, end)) = self.selection_range_internal(false) else {
+            return false;
+        };
+        if end.offset - beg.offset != needle.len() {
+            return false;
+        }
+
+        let mut selected = Vec::new();
+        self.buffer.extract_raw(beg.offset..end.offset, &mut selected, 0);
+        Self::literal_bytes_equal(&selected, needle, match_case)
+    }
+
+    fn find_literal_range_from(
+        &self,
+        needle: &[u8],
+        match_case: bool,
+        offset: usize,
+        wrap: bool,
+    ) -> Option<Range<usize>> {
+        if needle.is_empty() {
+            return None;
+        }
+
+        let mut haystack = Vec::new();
+        self.buffer.extract_raw(0..self.text_length(), &mut haystack, 0);
+        let offset = offset.min(haystack.len());
+
+        if let Some(start) = Self::find_literal_in(&haystack[offset..], needle, match_case) {
+            let start = offset + start;
+            return Some(start..start + needle.len());
+        }
+
+        if wrap
+            && offset > 0
+            && let Some(start) = Self::find_literal_in(&haystack[..offset], needle, match_case)
+        {
+            return Some(start..start + needle.len());
+        }
+
+        None
+    }
+
+    fn find_literal_in(haystack: &[u8], needle: &[u8], match_case: bool) -> Option<usize> {
+        haystack
+            .windows(needle.len())
+            .position(|candidate| Self::literal_bytes_equal(candidate, needle, match_case))
+    }
+
+    fn literal_bytes_equal(left: &[u8], right: &[u8], match_case: bool) -> bool {
+        if match_case {
+            left == right
+        } else {
+            left.len() == right.len()
+                && left.iter().zip(right).all(|(left, right)| left.eq_ignore_ascii_case(right))
+        }
+    }
+
+    fn find_select_literal_range(&mut self, range: Range<usize>) {
+        let beg = self.cursor_move_to_offset_internal(self.cursor, range.start);
+        let end = self.cursor_move_to_offset_internal(beg, range.end);
+
+        unsafe { self.set_cursor(end) };
+        self.make_cursor_visible();
+
+        self.set_selection(Some(TextBufferSelection {
+            beg: beg.logical_pos,
+            end: end.logical_pos,
+        }));
     }
 
     /// After replacing a zero-width match, compute the offset to resume

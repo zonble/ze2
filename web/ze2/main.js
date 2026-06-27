@@ -263,15 +263,19 @@ function persistEditorSettings() {
 
 function fontFamilyForChoice(choice) {
   if (choice === "kai") {
-    return '"DFKai-SB", "BiauKai", KaiTi, "TW-Kai", serif';
+    return '"monospace, DFKai-SB", "BiauKai", KaiTi, "TW-Kai"';
+  }
+  if (choice === "ming") {
+    return 'Courier, monospace, "細明體", "PMingLiU", "MingLiU", "SimSun"';
   }
   return 'Consolas, "Cascadia Mono", "SFMono-Regular", monospace';
 }
 
 function applyFontChoice(choice) {
-  const normalized = choice === "kai" ? "kai" : "standard";
+  const normalized = choice === "kai" ? "kai" : choice === "ming" ? "ming" : "standard";
   term.options.fontFamily = fontFamilyForChoice(normalized);
   document.getElementById("font-standard").checked = normalized === "standard";
+  document.getElementById("font-ming").checked = normalized === "ming";
   document.getElementById("font-kai").checked = normalized === "kai";
   scheduleResize();
 }
