@@ -377,6 +377,9 @@ fn draw(ctx: &mut Context, state: &mut State) {
     if state.wants_word_count {
         draw_dialog_word_count(ctx, state);
     }
+    if state.wants_help {
+        draw_dialog_help(ctx, state);
+    }
     if ctx.clipboard_ref().wants_host_sync() {
         draw_handle_clipboard_change(ctx, state);
     }

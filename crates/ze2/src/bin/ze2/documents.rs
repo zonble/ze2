@@ -2,9 +2,11 @@
 // Licensed under the MIT License.
 
 use std::ffi::OsStr;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::{fs, io};
+use std::{env, fs, io};
 
 use ze2::buffer::{RcTextBuffer, TextBuffer};
 use ze2::helpers::{CoordType, Point};
@@ -14,6 +16,8 @@ use ze2::{path, sys};
 use crate::apperr;
 use crate::settings::Settings;
 use crate::state::DisplayablePathBuf;
+
+const RECOVERY_COPY_MAX_BYTES: u64 = 100 * 1024 * 1024;
 
 pub struct Document {
     pub buffer: RcTextBuffer,
@@ -219,6 +223,7 @@ impl DocumentManager {
             if let Some(file) = &mut file {
                 let mut tb = buffer.borrow_mut();
                 tb.read_file(file, None)?;
+                Self::write_recovery_copy(&path);
 
                 if let Some(goto) = goto
                     && goto != Default::default()
@@ -288,6 +293,102 @@ impl DocumentManager {
             Settings::borrow().apply_to_buffer(&mut tb);
         }
         Ok(buffer)
+    }
+
+    fn write_recovery_copy(path: &Path) {
+        let Ok(mut src) = File::open(path) else {
+            return;
+        };
+        let Ok(metadata) = src.metadata() else {
+            return;
+        };
+        if metadata.len() > RECOVERY_COPY_MAX_BYTES {
+            return;
+        }
+        let dst = Self::recovery_copy_path(path);
+        let Some(dir) = dst.parent() else {
+            return;
+        };
+        if Self::create_private_recovery_dir(dir).is_err() {
+            return;
+        }
+        let mut options = OpenOptions::new();
+        options.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.custom_flags(libc::O_NOFOLLOW);
+            options.mode(0o600);
+        }
+        let Ok(mut dst) = options.open(dst) else {
+            return;
+        };
+        let _ = io::copy(&mut src, &mut dst);
+        let _ = dst.flush();
+    }
+
+    fn create_private_recovery_dir(dir: &Path) -> io::Result<()> {
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        match builder.create(dir) {
+            Ok(()) => Ok(()),
+            Err(err) if err.kind() == io::ErrorKind::AlreadyExists && Self::is_private_dir(dir) => {
+                Ok(())
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn is_private_dir(dir: &Path) -> bool {
+        let Ok(metadata) = fs::symlink_metadata(dir) else {
+            return false;
+        };
+        if !metadata.is_dir() {
+            return false;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            use std::os::unix::fs::PermissionsExt;
+            metadata.permissions().mode() & 0o077 == 0
+                && metadata.uid() == unsafe { libc::geteuid() }
+        }
+        #[cfg(not(unix))]
+        {
+            // Privacy hardening here is Unix-only; other platforms keep this
+            // best-effort recovery path available after the basic dir check.
+            true
+        }
+    }
+
+    fn recovery_copy_path(path: &Path) -> PathBuf {
+        let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("file");
+        let safe_name: String =
+            name.chars()
+                .map(|ch| {
+                    if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_') {
+                        ch
+                    } else {
+                        '_'
+                    }
+                })
+                .collect();
+        let mut hasher = DefaultHasher::new();
+        path.hash(&mut hasher);
+        // Segregate by user so the backup dir is private (created 0700 on write).
+        let user = env::var("USER").or_else(|_| env::var("USERNAME")).unwrap_or_default();
+        let user_safe: String = user
+            .chars()
+            .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_'))
+            .collect();
+        let hash = hasher.finish();
+        env::temp_dir()
+            .join(format!("ze2-recovery-{user_safe}-{hash:016x}"))
+            .join(format!("{safe_name}.bak"))
     }
 
     // Parse a filename in the form of "filename:line:char".
@@ -377,5 +478,102 @@ mod tests {
         assert_eq!(parse("1:a"), ("1:a", None));
         assert_eq!(parse("file.txt:10"), ("file.txt", Some(Point { x: 0, y: 9 })));
         assert_eq!(parse("file.txt:10:5"), ("file.txt", Some(Point { x: 4, y: 9 })));
+    }
+
+    #[test]
+    fn recovery_copy_path_includes_full_source_path() {
+        let a = DocumentManager::recovery_copy_path(Path::new("/tmp/a/main.rs"));
+        let b = DocumentManager::recovery_copy_path(Path::new("/tmp/b/main.rs"));
+
+        assert_ne!(a, b);
+        assert_ne!(a.parent(), b.parent());
+        assert_eq!(a.file_name().unwrap().to_string_lossy(), "main.rs.bak");
+        assert_eq!(b.file_name().unwrap().to_string_lossy(), "main.rs.bak");
+    }
+
+    #[test]
+    fn recovery_dir_creation_reuses_private_dir() {
+        let dir = std::env::temp_dir().join(format!("ze2-test-recovery-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+
+        DocumentManager::create_private_recovery_dir(&dir).unwrap();
+        DocumentManager::create_private_recovery_dir(&dir).unwrap();
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn recovery_copy_overwrites_existing_backup() {
+        let src = std::env::temp_dir().join(format!("ze2-test-source-{}", std::process::id()));
+        let dst = DocumentManager::recovery_copy_path(&src);
+        let _ = fs::remove_file(&src);
+        if let Some(dir) = dst.parent() {
+            let _ = fs::remove_dir_all(dir);
+        }
+
+        fs::write(&src, "old").unwrap();
+        DocumentManager::write_recovery_copy(&src);
+        fs::write(&src, "new").unwrap();
+        DocumentManager::write_recovery_copy(&src);
+
+        assert_eq!(fs::read_to_string(&dst).unwrap(), "new");
+
+        let _ = fs::remove_file(&src);
+        if let Some(dir) = dst.parent() {
+            let _ = fs::remove_dir_all(dir);
+        }
+    }
+
+    #[test]
+    fn recovery_copy_skips_large_files() {
+        let src =
+            std::env::temp_dir().join(format!("ze2-test-large-source-{}", std::process::id()));
+        let dst = DocumentManager::recovery_copy_path(&src);
+        let _ = fs::remove_file(&src);
+        if let Some(dir) = dst.parent() {
+            let _ = fs::remove_dir_all(dir);
+        }
+
+        let file = File::create(&src).unwrap();
+        file.set_len(RECOVERY_COPY_MAX_BYTES + 1).unwrap();
+        DocumentManager::write_recovery_copy(&src);
+
+        assert!(!dst.exists());
+
+        let _ = fs::remove_file(&src);
+        if let Some(dir) = dst.parent() {
+            let _ = fs::remove_dir_all(dir);
+        }
+    }
+
+    #[test]
+    fn is_private_dir_checks_permissions_and_symlinks() {
+        let dir = std::env::temp_dir().join(format!("ze2-test-private-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+
+        // Test normal private dir creation
+        DocumentManager::create_private_recovery_dir(&dir).unwrap();
+        assert!(DocumentManager::is_private_dir(&dir));
+
+        // Test with non-private permissions (unix-only)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&dir, fs::Permissions::from_mode(0o777)).unwrap();
+            assert!(!DocumentManager::is_private_dir(&dir));
+        }
+
+        // Test with symlink
+        let symlink_path =
+            std::env::temp_dir().join(format!("ze2-test-private-symlink-{}", std::process::id()));
+        let _ = fs::remove_file(&symlink_path);
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&dir, &symlink_path).unwrap();
+            assert!(!DocumentManager::is_private_dir(&symlink_path));
+            fs::remove_file(&symlink_path).unwrap();
+        }
+
+        fs::remove_dir_all(&dir).unwrap();
     }
 }

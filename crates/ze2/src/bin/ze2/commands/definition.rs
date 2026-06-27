@@ -25,6 +25,27 @@ pub enum Command {
     SelectAll,
     SelectLine,
     InsertText,
+    InsertLine,
+    SplitLine,
+    JoinLine,
+    FirstNonblank,
+    BeginWord,
+    EndWord,
+    TabWord,
+    BacktabWord,
+    MarkLine,
+    MarkChar,
+    MarkBlock,
+    Unmark,
+    CopyMark,
+    MoveMark,
+    DeleteMark,
+    FillMark,
+    OverlayBlock,
+    ShiftLeft,
+    ShiftRight,
+    CopyToCmd,
+    CopyFromCmd,
     FocusStatusbar,
     GoToFile,
     Goto,
@@ -34,6 +55,9 @@ pub enum Command {
     SaveAndCloseFileAndExitIfLast,
     CloseFileAndExitIfLast,
     SetWordWrapColumn,
+    SetMargins,
+    SetTabs,
+    Reflow,
     Menu,
     CenterText,
     SetHighlightCurrentChar,
@@ -44,48 +68,12 @@ pub enum Command {
     SetLineBreak,
     EnableVimCommands,
     EnableEmacsCommands,
-}
-
-#[cfg(test)]
-impl Command {
-    const ALL: &[Command] = &[
-        Command::NewFile,
-        Command::OpenFile,
-        Command::Save,
-        Command::SaveAs,
-        Command::Preferences,
-        Command::CloseFile,
-        Command::Exit,
-        Command::Undo,
-        Command::Redo,
-        Command::Cut,
-        Command::Copy,
-        Command::Paste,
-        Command::Find,
-        Command::Replace,
-        Command::SelectAll,
-        Command::SelectLine,
-        Command::InsertText,
-        Command::FocusStatusbar,
-        Command::GoToFile,
-        Command::Goto,
-        Command::WordWrap,
-        Command::About,
-        Command::WordCount,
-        Command::SaveAndCloseFileAndExitIfLast,
-        Command::CloseFileAndExitIfLast,
-        Command::SetWordWrapColumn,
-        Command::Menu,
-        Command::CenterText,
-        Command::SetHighlightCurrentChar,
-        Command::ToggleHighlightCurrentChar,
-        Command::SetEditorColor,
-        Command::SetEncoding,
-        Command::ReopenEncoding,
-        Command::SetLineBreak,
-        Command::EnableVimCommands,
-        Command::EnableEmacsCommands,
-    ];
+    QuerySetting,
+    InsertDate,
+    Uppercase,
+    Lowercase,
+    CharCode,
+    Help,
 }
 
 pub struct CommandInvocation {
@@ -146,13 +134,49 @@ impl CommandDefinition {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
-    use crate::commands::command_definition;
+    use crate::commands::command_definitions;
+    use crate::commands::parse::normalize_command_name;
+
+    // The table is assembled from several per-category arrays and command_definition()
+    // takes the FIRST match by id, so a duplicate Command registration silently makes
+    // the later entry unreachable. Replaces the old hand-maintained Command::ALL list
+    // (which only proved its own entries had definitions) with the real invariant.
+    #[test]
+    fn command_table_has_no_duplicate_ids() {
+        let mut seen: Vec<Command> = Vec::new();
+        for def in command_definitions() {
+            assert!(
+                !seen.contains(&def.command),
+                "duplicate command registration near {:?}",
+                def.names.first()
+            );
+            seen.push(def.command);
+        }
+    }
 
     #[test]
-    fn every_command_has_a_definition() {
-        for &command in Command::ALL {
-            assert!(command_definition(command).is_some());
+    fn command_table_has_no_duplicate_normalized_names() {
+        type NameGetter = fn(&CommandDefinition) -> &'static [&'static str];
+        for (family, names) in [
+            ("standard", (|def: &CommandDefinition| def.names) as NameGetter),
+            ("vim", (|def: &CommandDefinition| def.namesVim) as NameGetter),
+            ("emacs", (|def: &CommandDefinition| def.namesEmacs) as NameGetter),
+        ] {
+            let mut seen: BTreeMap<String, Command> = BTreeMap::new();
+            for def in command_definitions() {
+                for raw in names(def) {
+                    let name = normalize_command_name(raw);
+                    if let Some(prev) = seen.insert(name.clone(), def.command) {
+                        assert!(
+                            prev == def.command,
+                            "normalized {family} command name collision: {name}"
+                        );
+                    }
+                }
+            }
         }
     }
 }

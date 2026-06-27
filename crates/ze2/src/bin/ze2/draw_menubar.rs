@@ -451,3 +451,57 @@ pub fn draw_dialog_word_count(ctx: &mut Context, state: &mut State) {
         state.wants_word_count = false;
     }
 }
+
+// ponytail: title is a literal; give it a LocId when the rest of the UI gets one.
+pub fn draw_dialog_help(ctx: &mut Context, state: &mut State) {
+    let include_vim = state.command_bar_include_vim_commands;
+    let include_emacs = state.command_bar_include_emacs_commands;
+
+    let width = (ctx.size().width - 20).max(20);
+    let height = (ctx.size().height - 8).max(10);
+
+    ctx.modal_begin("help", "Commands");
+    ctx.attr_intrinsic_size(Size { width, height });
+    {
+        // The list must live in a bounded scrollarea, otherwise it grows past the
+        // screen and rows beyond the first viewport can't be reached.
+        // -2 for the modal's top and bottom border rows.
+        ctx.scrollarea_begin("commands-scroll", Size { width: 0, height: height - 2 });
+        {
+            ctx.list_begin("commands");
+            ctx.inherit_focus();
+            // The modal focuses itself on open, but the scrollarea between it and the
+            // list breaks the incremental inherit_focus chain, so no item ever gains
+            // focus and arrow keys do nothing. Seed focus onto the first item while the
+            // list isn't focused yet; steal_focus builds the full path in one shot, and
+            // later frames keep focus so navigation works.
+            let list_focused = ctx.contains_focus();
+            let mut first = true;
+            for def in crate::commands::command_definitions() {
+                let names: Vec<&str> =
+                    def.all_names_with_modes(include_vim, include_emacs).collect();
+                if names.is_empty() {
+                    continue;
+                }
+                let mut line = names.join(", ");
+                if let Some(hint) = def.argument_hint {
+                    line.push(' ');
+                    line.push_str(hint);
+                }
+                if ctx.list_item(false, &line) == ListSelection::Activated {
+                    state.wants_help = false;
+                }
+                ctx.attr_overflow(Overflow::TruncateTail);
+                if first && !list_focused {
+                    ctx.list_item_steal_focus();
+                }
+                first = false;
+            }
+            ctx.list_end();
+        }
+        ctx.scrollarea_end();
+    }
+    if ctx.modal_end() {
+        state.wants_help = false;
+    }
+}
