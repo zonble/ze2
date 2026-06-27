@@ -1,0 +1,67 @@
+name: Deploy ze2 Web to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: pages-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Rust
+        run: rustup toolchain install nightly --no-self-update --profile minimal
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown --toolchain nightly
+      - name: Build WASM
+        run: cargo +nightly build -p ze2-web --target wasm32-unknown-unknown --release
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p dist
+          cp web/ze2/index.html dist/
+          cp web/ze2/main.js dist/
+          cp target/wasm32-unknown-unknown/release/ze2_web.wasm dist/
+          touch dist/.nojekyll
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

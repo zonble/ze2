@@ -30,6 +30,10 @@ Then open:
 http://127.0.0.1:8080/
 ```
 
+## Deploy
+
+The GitHub Pages workflow builds `ze2-web` for `wasm32-unknown-unknown`, copies the generated `ze2_web.wasm` into the static site artifact, and deploys it when changes land on the `main` branch.
+
 ## Current Scope
 
 This is not the full native ze2 editor yet. It proves the browser-only architecture by running ze2's TUI framework in WASM and rendering its VT output through xterm.js.
@@ -52,4 +56,3 @@ Not yet supported:
 - OPFS workspace persistence
 - Full VT input parsing
 - Clipboard integration
-- GitHub Pages build automation
