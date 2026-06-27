@@ -203,10 +203,12 @@ impl Engine {
             doc.filename = name.to_string();
         }
 
-        let mut tb = doc.buffer.borrow_mut();
-        tb.write_raw(text.as_bytes());
-        tb.cursor_move_to_logical(Point::default());
-        tb.mark_as_clean();
+        {
+            let mut tb = doc.buffer.borrow_mut();
+            tb.write_raw(text.as_bytes());
+            tb.cursor_move_to_logical(Point::default());
+            tb.mark_as_clean();
+        }
 
         self.state.wants_editor_focus = true;
         self.frame(None);

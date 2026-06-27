@@ -1591,6 +1591,16 @@ zh-hant = "全部字元數"
 
 [WordCountCharactersWithoutLinebreaksAndSpaces]
 en = "Characters without linebreaks and spaces"
+de = "Zeichen ohne Zeilenumbrüche und Leerzeichen"
+es = "Caracteres sin saltos de línea ni espacios"
+fr = "Caractères sans sauts de ligne ni espaces"
+it = "Caratteri senza interruzioni di riga e spazi"
+ja = "改行と空白を除いた文字数"
+ko = "줄바꿈과 공백을 제외한 문자 수"
+pt-br = "Caracteres sem quebras de linha e espaços"
+ru = "Символов без переносов строк и пробелов"
+zh-hans = "不含换行与空格的字元数"
+zh-hant = "不含換行與空格的字元數"
 
 [WordCountAllLines]
 en = "All lines"
