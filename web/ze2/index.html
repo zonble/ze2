@@ -56,8 +56,40 @@
         overflow: hidden;
       }
 
+      #print-content {
+        display: none;
+      }
+
       #terminal .xterm-viewport {
         overflow: hidden !important;
+      }
+
+      @media print {
+        @page {
+          margin: 14mm 16mm;
+        }
+
+        html,
+        body {
+          height: auto;
+          overflow: visible;
+          background: #fff;
+          color: #000;
+        }
+
+        .toolbar,
+        #terminal {
+          display: none !important;
+        }
+
+        #print-content {
+          display: block;
+          margin: 0;
+          padding: 0;
+          white-space: pre-wrap;
+          word-break: break-word;
+          font: 20pt/1.35 Consolas, "Courier New", monospace;
+        }
       }
     </style>
   </head>
@@ -80,6 +112,7 @@
       </label>
     </div>
     <div id="terminal"></div>
+    <pre id="print-content" aria-hidden="true"></pre>
 
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>

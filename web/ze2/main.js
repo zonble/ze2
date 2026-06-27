@@ -9,6 +9,7 @@ const fitAddon = new FitAddon.FitAddon();
 term.loadAddon(fitAddon);
 enableUnicode11();
 const terminalElement = document.getElementById("terminal");
+const printContentElement = document.getElementById("print-content");
 term.open(terminalElement);
 enableTerminalModes();
 terminalElement.addEventListener("contextmenu", (event) => {
@@ -42,6 +43,7 @@ function flush() {
   if (ptr && len) {
     term.write(readBytes(ptr, len));
   }
+  syncPrintContent();
 }
 
 function enableTerminalModes() {
@@ -142,6 +144,7 @@ if (!api.ze2_web_init(term.cols, term.rows)) {
   applyStoredSettings();
   term.clear();
   flush();
+  syncPrintContent();
   scheduleAutosave();
 }
 
@@ -181,6 +184,7 @@ window.addEventListener("keydown", (event) => {
 
 window.addEventListener("resize", scheduleResize);
 new ResizeObserver(scheduleResize).observe(terminalElement);
+window.addEventListener("beforeprint", syncPrintContent);
 
 document.getElementById("open").addEventListener("click", async () => {
   await openBrowserFile();
@@ -321,6 +325,13 @@ function saveBrowserFile() {
   void autosaveNow().catch(reportAutosaveError);
 }
 
+function syncPrintContent() {
+  if (!printContentElement) {
+    return;
+  }
+  printContentElement.textContent = readCurrentDocumentText();
+}
+
 async function restoreAutosavedBuffer() {
   let buffers = [];
   let lastActiveBufferId = "";
@@ -420,10 +431,12 @@ function readActiveBufferName() {
 
 function replaceDocumentText(text, name) {
   writeDocumentText(text, name, "replace");
+  syncPrintContent();
 }
 
 function addDocumentText(text, name) {
   writeDocumentText(text, name, "add");
+  syncPrintContent();
 }
 
 function writeDocumentText(text, name, mode) {
