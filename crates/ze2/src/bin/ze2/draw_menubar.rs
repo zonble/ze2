@@ -12,7 +12,7 @@ use crate::commands::{
     execute_command_invocation,
 };
 use crate::localization::*;
-use crate::settings::{EditorColor, Settings};
+use crate::settings::{EditorColor, EofStyle, Settings};
 use crate::state::*;
 
 pub fn draw_menubar(ctx: &mut Context, state: &mut State, steal_focus_now: bool) {
@@ -275,6 +275,20 @@ fn draw_menu_view(ctx: &mut Context, state: &mut State) {
         if ctx.menubar_menu_button(editor_color_label, 'L', vk::NULL) {
             state.editor_color = next_editor_color;
             if let Err(err) = Settings::set_editor_color(state.editor_color) {
+                error_log_add(ctx, state, err);
+            }
+        }
+        let next_eof_style = match state.eof_style {
+            EofStyle::Original => EofStyle::Classic,
+            EofStyle::Classic => EofStyle::Original,
+        };
+        let eof_style_label = match state.eof_style {
+            EofStyle::Original => loc(LocId::ViewEofStyleOriginal),
+            EofStyle::Classic => loc(LocId::ViewEofStyleClassic),
+        };
+        if ctx.menubar_menu_button(eof_style_label, 'F', vk::NULL) {
+            state.eof_style = next_eof_style;
+            if let Err(err) = Settings::set_eof_style(state.eof_style) {
                 error_log_add(ctx, state, err);
             }
         }

@@ -15,7 +15,7 @@ use ze2::{buffer, icu};
 use crate::apperr;
 use crate::documents::DocumentManager;
 use crate::localization::*;
-use crate::settings::{EditorColor, Settings};
+use crate::settings::{EditorColor, EofStyle, Settings};
 
 #[repr(transparent)]
 pub struct FormatApperr(apperr::Error);
@@ -174,6 +174,7 @@ pub struct State {
     pub wants_center_text: bool,
     pub highlight_current_char: bool,
     pub editor_color: EditorColor,
+    pub eof_style: EofStyle,
 
     // File Picker State
     pub wants_file_picker: StateFilePicker,
@@ -220,6 +221,7 @@ impl State {
         let settings_center_text = settings.center_text;
         let settings_highlight_current_char = settings.highlight_current_char;
         let settings_editor_color = settings.editor_color;
+        let settings_eof_style = settings.eof_style;
         let settings_command_bar_include_vim_commands = settings.command_bar_include_vim_commands;
         let settings_command_bar_include_emacs_commands =
             settings.command_bar_include_emacs_commands;
@@ -268,6 +270,7 @@ impl State {
             wants_center_text: settings_center_text,
             highlight_current_char: settings_highlight_current_char,
             editor_color: settings_editor_color,
+            eof_style: settings_eof_style,
 
             // File Picker State
             wants_file_picker: StateFilePicker::None,

@@ -1599,6 +1599,10 @@ impl<'a> Context<'a, '_> {
         self.tui.size()
     }
 
+    pub fn set_eof_marker(&mut self, text: &str) {
+        self.tui.set_eof_marker(text);
+    }
+
     /// Returns an indexed color from the framebuffer.
     #[inline]
     pub fn indexed(&self, index: IndexedColor) -> StraightRgba {

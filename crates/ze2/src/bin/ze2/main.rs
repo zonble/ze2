@@ -39,7 +39,7 @@ use ze2::tui::*;
 use ze2::vt::{self, Token};
 use ze2::{base64, path, sys, unicode};
 
-use crate::settings::Settings;
+use crate::settings::{EofStyle, Settings};
 
 #[cfg(target_pointer_width = "32")]
 const SCRATCH_ARENA_CAPACITY: usize = 128 * MEBI;
@@ -115,7 +115,7 @@ fn run() -> apperr::Result<()> {
         alt: loc(LocId::Alt),
         shift: loc(LocId::Shift),
     });
-    tui.set_eof_marker(loc(LocId::EndOfFileMarker));
+    tui.set_eof_marker(eof_marker_for_style(state.eof_style));
     tui.set_floater_default_bg(floater_bg);
     tui.set_floater_default_fg(floater_fg);
     tui.set_modal_default_bg(floater_bg);
@@ -152,6 +152,7 @@ fn run() -> apperr::Result<()> {
             while {
                 let input = input_iter.next();
                 let more = input.is_some();
+                tui.set_eof_marker(eof_marker_for_style(state.eof_style));
                 let mut ctx = tui.create_context(input);
 
                 draw(&mut ctx, &mut state);
@@ -168,6 +169,7 @@ fn run() -> apperr::Result<()> {
         // Continue rendering until the layout has settled.
         // This can take >1 frame, if the input focus is tossed between different controls.
         while tui.needs_settling() {
+            tui.set_eof_marker(eof_marker_for_style(state.eof_style));
             let mut ctx = tui.create_context(None);
 
             draw(&mut ctx, &mut state);
@@ -329,10 +331,12 @@ fn print_version() {
 
 fn draw(ctx: &mut Context, state: &mut State) {
     draw_menubar(ctx, state, false);
+    ctx.set_eof_marker(eof_marker_for_style(state.eof_style));
 
     if let Some(invocation) = handle_input_before_editor(ctx, state) {
         execute_command_invocation(ctx, state, invocation);
         ctx.set_input_consumed();
+        ctx.set_eof_marker(eof_marker_for_style(state.eof_style));
     }
 
     draw_editor(ctx, state);
@@ -401,6 +405,13 @@ fn draw(ctx: &mut Context, state: &mut State) {
         // All of the above shortcuts happen to require a rerender.
         ctx.needs_rerender();
         ctx.set_input_consumed();
+    }
+}
+
+fn eof_marker_for_style(style: EofStyle) -> &'static str {
+    match style {
+        EofStyle::Original => loc(LocId::EndOfFileMarker),
+        EofStyle::Classic => "迋═ Bottom of File 迋═", // note: do not localized this.
     }
 }
 

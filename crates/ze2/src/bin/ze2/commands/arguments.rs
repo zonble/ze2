@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use ze2::icu;
 use ze2::path;
 
-use crate::settings::EditorColor;
+use crate::settings::{EditorColor, EofStyle};
 
 pub(crate) fn command_path_argument(argument: &Option<String>) -> Option<PathBuf> {
     let argument = argument.as_deref()?.trim();
@@ -50,6 +50,14 @@ pub(crate) fn command_editor_color_argument(argument: &Option<String>) -> Option
     match argument.as_deref()?.trim().to_ascii_lowercase().as_str() {
         "original" => Some(EditorColor::Original),
         "white-on-blue" | "whiteonblue" => Some(EditorColor::WhiteOnBlue),
+        _ => None,
+    }
+}
+
+pub(crate) fn command_eof_style_argument(argument: &Option<String>) -> Option<EofStyle> {
+    match argument.as_deref()?.trim().to_ascii_lowercase().as_str() {
+        "original" => Some(EofStyle::Original),
+        "classic" => Some(EofStyle::Classic),
         _ => None,
     }
 }
@@ -117,6 +125,17 @@ mod tests {
                 == Some(EditorColor::WhiteOnBlue)
         );
         assert!(command_editor_color_argument(&Some("blue".to_string())).is_none());
+    }
+
+    #[test]
+    fn eof_style_arguments_accept_supported_values() {
+        assert!(
+            command_eof_style_argument(&Some("original".to_string())) == Some(EofStyle::Original)
+        );
+        assert!(
+            command_eof_style_argument(&Some("classic".to_string())) == Some(EofStyle::Classic)
+        );
+        assert!(command_eof_style_argument(&Some("modern".to_string())).is_none());
     }
 
     #[test]

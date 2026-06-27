@@ -1013,7 +1013,7 @@ tr = "=== DOSYA SONU ==="
 uk = "=== КІНЕЦЬ ФАЙЛУ ==="
 vi = "=== KẾT THÚC TỆP ==="
 zh-hans = "=== 文件结束 ==="
-zh-hant = "=== 檔案結束 ==="
+zh-hant = "≣≣≣  檔  尾  ≣≣≣"
 
 [ViewWordWrap]
 en = "Word Wrap"
@@ -1173,6 +1173,16 @@ zh-hant = "編輯器色彩：原始"
 en = "Editor Color: White on Blue"
 zh-hans = "编辑器颜色：蓝底白字"
 zh-hant = "編輯器色彩：藍底白字"
+
+[ViewEofStyleOriginal]
+en = "EOF Style: Original"
+zh-hans = "EOF 样式：原始"
+zh-hant = "EOF 樣式：原始"
+
+[ViewEofStyleClassic]
+en = "EOF Style: Classic"
+zh-hans = "EOF 样式：经典"
+zh-hant = "EOF 樣式：經典"
 
 [ViewGoToFile]
 en = "Go to File…"

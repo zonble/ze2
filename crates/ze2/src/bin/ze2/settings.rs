@@ -20,6 +20,7 @@ pub struct Settings {
     pub center_text: bool,
     pub highlight_current_char: bool,
     pub editor_color: EditorColor,
+    pub eof_style: EofStyle,
     pub command_bar_include_vim_commands: bool,
     pub command_bar_include_emacs_commands: bool,
 }
@@ -28,6 +29,12 @@ pub struct Settings {
 pub enum EditorColor {
     Original,
     WhiteOnBlue,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum EofStyle {
+    Original,
+    Classic,
 }
 
 struct SettingsCell(SemiRefCell<Settings>);
@@ -53,6 +60,7 @@ impl Settings {
             center_text: false,
             highlight_current_char: false,
             editor_color: EditorColor::Original,
+            eof_style: EofStyle::Original,
             command_bar_include_vim_commands: false,
             command_bar_include_emacs_commands: false,
         }
@@ -146,6 +154,13 @@ impl Settings {
             };
         }
 
+        if let Some(eof_style) = root.get_str("editor.eofStyle") {
+            self.eof_style = match eof_style {
+                "classic" => EofStyle::Classic,
+                _ => EofStyle::Original,
+            };
+        }
+
         if let Some(include_vim_commands) = root.get_bool("commandBar.includeVimCommands") {
             self.command_bar_include_vim_commands = include_vim_commands;
         } else if let Some(include_vim_commands) = root.get_str("commandBar.includeVimCommands") {
@@ -213,6 +228,18 @@ impl Settings {
         let settings = &mut *SETTINGS.0.borrow_mut();
         settings.path = path;
         settings.editor_color = color;
+        Ok(())
+    }
+
+    pub fn set_eof_style(style: EofStyle) -> apperr::Result<()> {
+        let value = match style {
+            EofStyle::Original => "\"original\"",
+            EofStyle::Classic => "\"classic\"",
+        };
+        let path = Self::write_setting("editor.eofStyle", value)?;
+        let settings = &mut *SETTINGS.0.borrow_mut();
+        settings.path = path;
+        settings.eof_style = style;
         Ok(())
     }
 

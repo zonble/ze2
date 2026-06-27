@@ -3,7 +3,9 @@
 
 use ze2::tui::Context;
 
-use super::arguments::{command_bool_argument, command_editor_color_argument};
+use super::arguments::{
+    command_bool_argument, command_editor_color_argument, command_eof_style_argument,
+};
 use super::{Command, CommandArgs, CommandDefinition, CommandFocusTarget};
 use crate::localization::LocId;
 use crate::settings::Settings;
@@ -99,6 +101,16 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         default_focus_target: CommandFocusTarget::Default,
         handler: set_editor_color,
         argument_hint: Some("original|white-on-blue"),
+    },
+    CommandDefinition {
+        command: Command::SetEofStyle,
+        names: &["set-eof-style"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: set_eof_style,
+        argument_hint: Some("original|classic"),
     },
 ];
 
@@ -230,6 +242,15 @@ fn set_editor_color(ctx: &mut Context, state: &mut State, args: CommandArgs) {
     if let Some(editor_color) = command_editor_color_argument(&args.argument) {
         state.editor_color = editor_color;
         if let Err(err) = Settings::set_editor_color(state.editor_color) {
+            error_log_add(ctx, state, err);
+        }
+    }
+}
+
+fn set_eof_style(ctx: &mut Context, state: &mut State, args: CommandArgs) {
+    if let Some(eof_style) = command_eof_style_argument(&args.argument) {
+        state.eof_style = eof_style;
+        if let Err(err) = Settings::set_eof_style(state.eof_style) {
             error_log_add(ctx, state, err);
         }
     }

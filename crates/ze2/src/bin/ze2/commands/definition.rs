@@ -63,6 +63,7 @@ pub enum Command {
     SetHighlightCurrentChar,
     ToggleHighlightCurrentChar,
     SetEditorColor,
+    SetEofStyle,
     SetEncoding,
     ReopenEncoding,
     SetLineBreak,
