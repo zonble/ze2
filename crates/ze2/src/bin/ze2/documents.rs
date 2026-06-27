@@ -328,12 +328,15 @@ impl DocumentManager {
     }
 
     fn create_private_recovery_dir(dir: &Path) -> io::Result<()> {
+        #[cfg(unix)]
         let mut builder = fs::DirBuilder::new();
         #[cfg(unix)]
         {
             use std::os::unix::fs::DirBuilderExt;
             builder.mode(0o700);
         }
+        #[cfg(not(unix))]
+        let builder = fs::DirBuilder::new();
         match builder.create(dir) {
             Ok(()) => Ok(()),
             Err(err) if err.kind() == io::ErrorKind::AlreadyExists && Self::is_private_dir(dir) => {
