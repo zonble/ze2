@@ -23,6 +23,12 @@ pub fn command_invocation_from_shortcut(key: InputKey) -> Option<CommandInvocati
     }
 
     Some(match key {
+        k if k == kbmod::ALT | vk::B => Command::MarkBlock,
+        k if k == kbmod::ALT | vk::L => Command::MarkLine,
+        k if k == kbmod::ALT | vk::M => Command::MoveMark,
+        k if k == kbmod::ALT | vk::C => Command::CopyMark,
+        k if k == kbmod::ALT | vk::F => Command::FillMark,
+        k if k == kbmod::ALT | vk::U => Command::Unmark,
         k if k == kbmod::CTRL | vk::N => Command::NewFile,
         k if k == kbmod::CTRL | vk::O => Command::OpenFile,
         k if k == kbmod::CTRL | vk::S => Command::Save,
@@ -64,7 +70,8 @@ fn text_from_insert_shortcut(key: InputKey) -> Option<&'static str> {
 const INSERT_SHORTCUTS: &[InsertShortcut] = &[
     InsertShortcut { modifiers: kbmod::ALT, key: vk::COMMA, text: "，" },
     InsertShortcut { modifiers: kbmod::ALT, key: vk::PERIOD, text: "。" },
-    InsertShortcut { modifiers: kbmod::ALT, key: vk::DELETE, text: "。" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::LT, text: "〈" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::GT, text: "〉" },
     InsertShortcut { modifiers: kbmod::ALT, key: vk::SEMICOLON, text: "；" },
     InsertShortcut { modifiers: kbmod::ALT, key: vk::COLON, text: "：" },
     InsertShortcut { modifiers: kbmod::ALT_SHIFT, key: vk::SEMICOLON, text: "：" },
@@ -76,8 +83,18 @@ const INSERT_SHORTCUTS: &[InsertShortcut] = &[
     InsertShortcut { modifiers: kbmod::ALT, key: vk::RBRACE, text: "』" },
     InsertShortcut { modifiers: kbmod::ALT_SHIFT, key: vk::RBRACKET, text: "』" },
     InsertShortcut { modifiers: kbmod::ALT, key: vk::N1, text: "！" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::N3, text: "△" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::N4, text: "□" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::N5, text: "☆" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::N6, text: "◇" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::N7, text: "○" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::N8, text: "※" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::N9, text: "（" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::N0, text: "）" },
     InsertShortcut { modifiers: kbmod::ALT, key: vk::EXCLAMATION, text: "！" },
     InsertShortcut { modifiers: kbmod::ALT_SHIFT, key: vk::N1, text: "！" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::SLASH, text: "？" },
+    InsertShortcut { modifiers: kbmod::ALT, key: vk::QUESTION, text: "？" },
 ];
 
 #[cfg(test)]
@@ -109,6 +126,24 @@ mod tests {
             };
 
             assert!(text == expected);
+        }
+    }
+
+    #[test]
+    fn mark_shortcuts_map_to_commands() {
+        for (key, expected) in [
+            (kbmod::ALT | vk::B, Command::MarkBlock),
+            (kbmod::ALT | vk::L, Command::MarkLine),
+            (kbmod::ALT | vk::M, Command::MoveMark),
+            (kbmod::ALT | vk::C, Command::CopyMark),
+        ] {
+            let Some(CommandInvocation { command, args }) = command_invocation_from_shortcut(key)
+            else {
+                panic!("mark shortcut did not parse");
+            };
+
+            assert!(command == expected);
+            assert!(args.argument.is_none());
         }
     }
 }

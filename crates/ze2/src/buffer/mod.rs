@@ -249,12 +249,19 @@ enum SmartPunctuationAction {
 }
 
 const SMART_PUNCTUATION_RULES: &[SmartPunctuationRule] = &[
-    SmartPunctuationRule { input: "，", triggers: &["，"], replacement: "〈" },
-    SmartPunctuationRule { input: "。", triggers: &["。", "."], replacement: "〉" },
+    SmartPunctuationRule { input: "、", triggers: &["、"], replacement: "．" },
     SmartPunctuationRule { input: "「", triggers: &["「"], replacement: "【" },
     SmartPunctuationRule { input: "」", triggers: &["」"], replacement: "】" },
     SmartPunctuationRule { input: "『", triggers: &["『"], replacement: "〖" },
     SmartPunctuationRule { input: "』", triggers: &["』"], replacement: "〗" },
+    SmartPunctuationRule { input: "〈", triggers: &["〈"], replacement: "《" },
+    SmartPunctuationRule { input: "〉", triggers: &["〉"], replacement: "》" },
+    SmartPunctuationRule { input: "△", triggers: &["△"], replacement: "▲" },
+    SmartPunctuationRule { input: "□", triggers: &["□"], replacement: "■" },
+    SmartPunctuationRule { input: "☆", triggers: &["☆"], replacement: "★" },
+    SmartPunctuationRule { input: "◇", triggers: &["◇"], replacement: "◆" },
+    SmartPunctuationRule { input: "○", triggers: &["○"], replacement: "●" },
+    SmartPunctuationRule { input: "※", triggers: &["※"], replacement: "㊣" },
 ];
 
 fn smart_punctuation_action(text: &[u8], prev_bytes: &[u8]) -> Option<SmartPunctuationAction> {

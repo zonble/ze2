@@ -119,6 +119,11 @@ pub mod vk {
     pub const RBRACKET: InputKey = InputKey::new(']' as u32);
     pub const LBRACE: InputKey = InputKey::new('{' as u32);
     pub const RBRACE: InputKey = InputKey::new('}' as u32);
+    pub const LT: InputKey = InputKey::new(0x3c);
+    pub const GT: InputKey = InputKey::new(0x3e);
+    pub const QUESTION: InputKey = InputKey::new(0x3f);
+    pub const SLASH: InputKey = InputKey::new(0x2f);
+
     pub const PRIOR: InputKey = InputKey::new(0x21);
     pub const NEXT: InputKey = InputKey::new(0x22);
 
