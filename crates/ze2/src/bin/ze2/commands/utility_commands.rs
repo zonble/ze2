@@ -205,7 +205,8 @@ fn char_code(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
 fn help(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
     // Bare `help` opens the scrollable command list; `help <name>` is a quick
     // one-line lookup of a single command's aliases in the command bar.
-    match args.argument.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+    // Only the first argument token matters; extra words are ignored.
+    match help_query_from_argument(args.argument.as_deref()) {
         Some(query) => {
             state.command_bar_error = help_text(
                 query,
@@ -216,6 +217,10 @@ fn help(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
         }
         None => state.wants_help = true,
     }
+}
+
+fn help_query_from_argument(argument: Option<&str>) -> Option<&str> {
+    argument.map(str::trim).and_then(|query| query.split_whitespace().next())
 }
 
 fn help_text(query: &str, include_vim: bool, include_emacs: bool) -> String {
@@ -236,7 +241,14 @@ fn help_text(query: &str, include_vim: bool, include_emacs: bool) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::help_text;
+    use super::{help_query_from_argument, help_text};
+
+    #[test]
+    fn help_uses_only_the_second_token() {
+        assert_eq!(help_query_from_argument(Some("about aa xacsadf")), Some("about"));
+        assert_eq!(help_query_from_argument(Some("ab")), Some("ab"));
+        assert_eq!(help_query_from_argument(Some("   ")), None);
+    }
 
     #[test]
     fn help_describes_a_known_command() {

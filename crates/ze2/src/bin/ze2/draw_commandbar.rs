@@ -55,11 +55,10 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
         ctx.inherit_focus();
 
         if ctx.contains_focus() {
-            let suggestions = if !state.command_bar_input.is_empty()
-                && !state.command_bar_input.contains(char::is_whitespace)
-            {
+            let autocomplete = commandbar_autocomplete_context(&state.command_bar_input);
+            let suggestions = if let Some(prefix) = autocomplete.prefix {
                 autocomplete_command_suggestions_with_modes(
-                    &state.command_bar_input,
+                    prefix,
                     state.command_bar_include_vim_commands,
                     state.command_bar_include_emacs_commands,
                 )
@@ -99,11 +98,11 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
                 if apply_autocomplete {
                     if let Some(idx) = state.command_bar_autocomplete_index {
                         if let Some(suggestion) = suggestions.get(idx) {
-                            state.command_bar_input = suggestion.name.clone();
+                            state.command_bar_input = autocomplete.apply(&suggestion.name);
                             state.command_bar_autocomplete_index = None;
                         }
                     } else if let Some(suggestion) = suggestions.first() {
-                        state.command_bar_input = suggestion.name.clone();
+                        state.command_bar_input = autocomplete.apply(&suggestion.name);
                         state.command_bar_autocomplete_index = None;
                     }
                 }
@@ -190,6 +189,48 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
     }
 }
 
+struct CommandbarAutocompleteContext<'a> {
+    prefix: Option<&'a str>,
+    head: &'a str,
+    tail: &'a str,
+}
+
+impl<'a> CommandbarAutocompleteContext<'a> {
+    fn apply(&self, suggestion: &str) -> String {
+        let mut text = String::with_capacity(self.head.len() + suggestion.len() + self.tail.len());
+        text.push_str(self.head);
+        text.push_str(suggestion);
+        text.push_str(self.tail);
+        text
+    }
+}
+
+fn commandbar_autocomplete_context(input: &str) -> CommandbarAutocompleteContext<'_> {
+    let trimmed = input.trim_start();
+    if let Some(rest) = trimmed.strip_prefix("help") {
+        let rest = rest.trim_start();
+        if rest.is_empty() {
+            return CommandbarAutocompleteContext { prefix: Some(""), head: input, tail: "" };
+        }
+
+        let arg_len = rest.find(char::is_whitespace).unwrap_or(rest.len());
+        let arg = &rest[..arg_len];
+        let head_len = input.len() - rest.len();
+        let tail = &rest[arg_len..];
+        return CommandbarAutocompleteContext { prefix: Some(arg), head: &input[..head_len], tail };
+    }
+
+    if let Some((head, tail)) = input.split_once(char::is_whitespace) {
+        return CommandbarAutocompleteContext { prefix: Some(head), head: "", tail };
+    }
+
+    if !input.is_empty() {
+        return CommandbarAutocompleteContext { prefix: Some(input), head: "", tail: "" };
+    }
+
+    CommandbarAutocompleteContext { prefix: None, head: "", tail: "" }
+}
+
 fn submit_commandbar_input(ctx: &mut Context, state: &mut State) {
     let input = state.command_bar_input.trim();
 
@@ -245,4 +286,44 @@ fn command_macro_from_text(
     }
 
     Some(invocations)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::commandbar_autocomplete_context;
+
+    #[test]
+    fn autocomplete_uses_first_command_token() {
+        let ctx = commandbar_autocomplete_context("set-editor-color ");
+        assert_eq!(ctx.prefix, Some("set-editor-color"));
+        assert_eq!(ctx.apply("set-editor-color"), "set-editor-color ");
+    }
+
+    #[test]
+    fn autocomplete_keeps_help_argument_tail() {
+        let ctx = commandbar_autocomplete_context("help about ");
+        assert_eq!(ctx.prefix, Some("about"));
+        assert_eq!(ctx.apply("about"), "help about ");
+    }
+
+    #[test]
+    fn autocomplete_offers_help_with_empty_argument() {
+        let ctx = commandbar_autocomplete_context("help ");
+        assert_eq!(ctx.prefix, Some(""));
+        assert_eq!(ctx.apply("save"), "help save");
+    }
+
+    #[test]
+    fn autocomplete_ignores_multi_word_non_help_input() {
+        let ctx = commandbar_autocomplete_context("set editor");
+        assert_eq!(ctx.prefix, Some("set"));
+        assert_eq!(ctx.apply("set-editor-color"), "set-editor-color editor");
+    }
+
+    #[test]
+    fn autocomplete_help_uses_second_token_prefix() {
+        let ctx = commandbar_autocomplete_context("help ab");
+        assert_eq!(ctx.prefix, Some("ab"));
+        assert_eq!(ctx.apply("about"), "help about");
+    }
 }
