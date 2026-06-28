@@ -245,23 +245,37 @@ struct SmartPunctuationRule {
 
 enum SmartPunctuationAction {
     ReplacePrevious(&'static str),
-    Ignore,
 }
 
 const SMART_PUNCTUATION_RULES: &[SmartPunctuationRule] = &[
+    SmartPunctuationRule { input: "，", triggers: &["，"], replacement: "〈" },
+    SmartPunctuationRule { input: "，", triggers: &["〈"], replacement: "《" },
+    SmartPunctuationRule { input: "，", triggers: &["《"], replacement: "《" },
     SmartPunctuationRule { input: "、", triggers: &["、"], replacement: "．" },
     SmartPunctuationRule { input: "「", triggers: &["「"], replacement: "【" },
+    SmartPunctuationRule { input: "「", triggers: &["【"], replacement: "【" },
     SmartPunctuationRule { input: "」", triggers: &["」"], replacement: "】" },
+    SmartPunctuationRule { input: "」", triggers: &["】"], replacement: "】" },
     SmartPunctuationRule { input: "『", triggers: &["『"], replacement: "〖" },
+    SmartPunctuationRule { input: "『", triggers: &["〖"], replacement: "〖" },
     SmartPunctuationRule { input: "』", triggers: &["』"], replacement: "〗" },
+    SmartPunctuationRule { input: "』", triggers: &["〗"], replacement: "〗" },
     SmartPunctuationRule { input: "〈", triggers: &["〈"], replacement: "《" },
+    SmartPunctuationRule { input: "〈", triggers: &["《"], replacement: "《" },
     SmartPunctuationRule { input: "〉", triggers: &["〉"], replacement: "》" },
+    SmartPunctuationRule { input: "〉", triggers: &["》"], replacement: "》" },
     SmartPunctuationRule { input: "△", triggers: &["△"], replacement: "▲" },
+    SmartPunctuationRule { input: "△", triggers: &["▲"], replacement: "▲" },
     SmartPunctuationRule { input: "□", triggers: &["□"], replacement: "■" },
+    SmartPunctuationRule { input: "□", triggers: &["■"], replacement: "■" },
     SmartPunctuationRule { input: "☆", triggers: &["☆"], replacement: "★" },
+    SmartPunctuationRule { input: "☆", triggers: &["★"], replacement: "★" },
     SmartPunctuationRule { input: "◇", triggers: &["◇"], replacement: "◆" },
+    SmartPunctuationRule { input: "◇", triggers: &["◆"], replacement: "◆" },
     SmartPunctuationRule { input: "○", triggers: &["○"], replacement: "●" },
+    SmartPunctuationRule { input: "○", triggers: &["●"], replacement: "●" },
     SmartPunctuationRule { input: "※", triggers: &["※"], replacement: "㊣" },
+    SmartPunctuationRule { input: "※", triggers: &["㊣"], replacement: "㊣" },
 ];
 
 fn smart_punctuation_action(text: &[u8], prev_bytes: &[u8]) -> Option<SmartPunctuationAction> {
@@ -269,8 +283,6 @@ fn smart_punctuation_action(text: &[u8], prev_bytes: &[u8]) -> Option<SmartPunct
 
     if rule.triggers.iter().any(|trigger| prev_bytes.ends_with(trigger.as_bytes())) {
         Some(SmartPunctuationAction::ReplacePrevious(rule.replacement))
-    } else if prev_bytes.ends_with(rule.replacement.as_bytes()) {
-        Some(SmartPunctuationAction::Ignore)
     } else {
         None
     }
@@ -3348,7 +3360,6 @@ impl TextBuffer {
                 self.write_canon(replacement.as_bytes());
                 self.edit_end_grouping();
             }
-            Some(SmartPunctuationAction::Ignore) => {}
             None => self.write_canon(text),
         }
     }
@@ -4649,7 +4660,7 @@ mod tests {
             buf.write_canon_smart("，".as_bytes());
             assert_eq!(buffer_contents(&mut buf), "〈");
             buf.write_canon_smart("，".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "〈");
+            assert_eq!(buffer_contents(&mut buf), "《");
         }
 
         // Alt + . with 。
