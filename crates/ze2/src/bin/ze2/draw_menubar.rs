@@ -305,6 +305,12 @@ fn draw_menu_utils(ctx: &mut Context, state: &mut State) {
     if ctx.menubar_menu_button(loc(LocId::UtilsWordCount), 'W', vk::NULL) {
         execute_command(ctx, state, Command::WordCount);
     }
+    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToSimplifiedChinese), 'S', vk::NULL) {
+        execute_command(ctx, state, Command::TransformSimplifiedChinese);
+    }
+    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToTraditionalChinese), 'T', vk::NULL) {
+        execute_command(ctx, state, Command::TransformTraditionalChinese);
+    }
     if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToUppercased), 'U', vk::NULL) {
         execute_command(ctx, state, Command::TransformUppercase);
     }
@@ -326,6 +332,7 @@ fn draw_menu_utils(ctx: &mut Context, state: &mut State) {
     if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToHiragana), 'I', vk::NULL) {
         execute_command(ctx, state, Command::TransformHiragana);
     }
+
     ctx.menubar_menu_end();
 }
 

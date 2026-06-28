@@ -78,6 +78,8 @@ pub enum Command {
     TransformLatin,
     TransformKatakana,
     TransformHiragana,
+    TransformSimplifiedChinese,
+    TransformTraditionalChinese,
     CharCode,
     Help,
 }

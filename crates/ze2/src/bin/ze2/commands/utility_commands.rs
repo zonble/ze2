@@ -144,6 +144,26 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         argument_hint: None,
     },
     CommandDefinition {
+        command: Command::TransformSimplifiedChinese,
+        names: &["transform-simplified-chinese", "simplified-chinese"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: transform_simplified_chinese,
+        argument_hint: None,
+    },
+    CommandDefinition {
+        command: Command::TransformTraditionalChinese,
+        names: &["transform-traditional-chinese", "traditional-chinese"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: transform_traditional_chinese,
+        argument_hint: None,
+    },
+    CommandDefinition {
         command: Command::CharCode,
         names: &["char-code", "char"],
         namesVim: &[],
@@ -266,6 +286,14 @@ fn transform_hiragana(_ctx: &mut Context, state: &mut State, _args: CommandArgs)
     apply_icu_transform(state, "Any-Hiragana");
 }
 
+fn transform_simplified_chinese(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    apply_icu_transform(state, "Hant-Hans");
+}
+
+fn transform_traditional_chinese(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    apply_icu_transform(state, "Hans-Hant");
+}
+
 fn transform_id_for_half_width() -> &'static str {
     "Fullwidth-Halfwidth"
 }
@@ -361,6 +389,8 @@ mod tests {
         assert_eq!("Any-Latin", "Any-Latin");
         assert_eq!("Any-Katakana", "Any-Katakana");
         assert_eq!("Any-Hiragana", "Any-Hiragana");
+        assert_eq!("Hans-Hans", "Hans-Hans");
+        assert_eq!("Hans-Hant", "Hans-Hant");
     }
 
     #[test]
@@ -369,5 +399,17 @@ mod tests {
         let output = String::from_utf8(output).unwrap();
         assert!(output.len() > "我是楊維中".len(), "got: {output}");
         assert!(output.contains('Y') || output.contains('y'), "got: {output}");
+    }
+
+    #[test]
+    fn chinese_transform_ids_work_both_directions() {
+        let simplified =
+            String::from_utf8(icu::transform_text("Hant-Hans", "繁體中文".as_bytes()).unwrap())
+                .unwrap();
+        let traditional =
+            String::from_utf8(icu::transform_text("Hans-Hant", "简体中文".as_bytes()).unwrap())
+                .unwrap();
+        assert!(simplified.contains("体") || simplified.contains("体"), "got: {simplified}");
+        assert!(traditional.contains("體") || traditional.contains("體"), "got: {traditional}");
     }
 }

@@ -3035,49 +3035,45 @@ zh-hant = "Web 版本中必須保留至少一份文件，無法完全結束"
 
 [UtilsSelectedToUppercased]
 en = "Selected to UPPERCASED"
-ar = "Selection to UPPERCASED"
-bn = "নির্বাচিত অংশকে UPPERCASED করুন"
 zh-hans = "选中字母大写"
-zh-hant = "將選擇的字轉成大寫"
+zh-hant = "轉成大寫"
 
 [UtilsSelectedToLowercased]
 en = "Selected to lowercased"
-ar = "Selection to lowercased"
-bn = "নির্বাচিত অংশকে lowercased করুন"
 zh-hans = "选中字母小写"
-zh-hant = "將選擇的字轉成小寫"
+zh-hant = "轉成小寫"
 
 [UtilsSelectedToHalfWidth]
 en = "Selected to Half Width"
-ar = "Selection to Half Width"
-bn = "নির্বাচিত অংশকে Half Width করুন"
 zh-hans = "选中半角"
-zh-hant = "選中半角"
+zh-hant = "轉成半形"
 
 [UtilsSelectedToFullWidth]
 en = "Selected to Full Width"
-ar = "Selection to Full Width"
-bn = "নির্বাচিত অংশকে Full Width করুন"
 zh-hans = "选中全角"
-zh-hant = "選中全角"
+zh-hant = "轉成全形"
+
+[UtilsSelectedToSimplifiedChinese]
+en = "Selected to Simplified Chinese"
+zh-hans = "选中简体中文"
+zh-hant = "轉成簡體中文"
+
+[UtilsSelectedToTraditionalChinese]
+en = "Selected to Traditional Chinese"
+zh-hans = "选中繁体中文"
+zh-hant = "轉成繁體中文"
 
 [UtilsSelectedToLatin]
 en = "Selected to Latin"
-ar = "Selection to Latin"
-bn = "নির্বাচিত অংশকে Latin করুন"
 zh-hans = "选中拉丁"
-zh-hant = "選中拉丁"
+zh-hant = "轉成拉丁文字"
 
 [UtilsSelectedToKatakana]
 en = "Selected to Katakana"
-ar = "Selection to Katakana"
-bn = "নির্বাচিত অংশকে Katakana করুন"
 zh-hans = "选中片假名"
-zh-hant = "選中片假名"
+zh-hant = "轉成片假名"
 
 [UtilsSelectedToHiragana]
 en = "Selected to Hirakana"
-ar = "Selection to Hirakana"
-bn = "নির্বাচিত অংশকে Hirakana করুন"
 zh-hans = "选中平假名"
-zh-hant = "選中平假名"
+zh-hant = "轉成平假名"
