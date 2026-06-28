@@ -180,6 +180,7 @@ const LANGUAGES: &[(&str, LangId)] = &[
             "\
 ];
 
+#[allow(clippy::large_const_arrays)]
 const TRANSLATIONS: [[&str; {}]; {}] = [
 ",
             translations.len(),

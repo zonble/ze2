@@ -2921,7 +2921,7 @@ tr = "Klasör:"
 uk = "Папка:"
 vi = "Thư mục:"
 zh-hans = "文件夹:"
-zh-hant = "資料夾:"
+zh-hant = "檔案夾:"
 
 [SaveAsDialogNameLabel]
 en = "File name:"
@@ -3025,23 +3025,24 @@ tk = "Faýl eýýäm bar. Ony gaýtadan ýazmak isleýärsiňizmi?"
 tr = "Dosya zaten var. Üzerine yazmak istiyor musunuz?"
 uk = "Файл вже існує. Перезаписати?"
 vi = "Tệp đã tồn tại. Bạn có muốn ghi đè không?"
-zh-hans = "文件已存在。要覆盖它吗？"
-zh-hant = "檔案已存在。要覆蓋它嗎？"
+zh-hans = "文件已存在。您要覆盖它吗？"
+zh-hant = "檔案已存在。您要覆蓋它嗎？"
 
 [WebCannotExitLastDocument]
 en = "Web version must keep at least one document open, cannot completely exit"
-zh-hant = "Web 版本必須保留至少一份文件，無法完全結束"
-zh-hans = "Web 版本必须保留至少一份文件，无法完全退出"
+zh-hans = "Web 版本中必须保留至少一份文件，无法完全退出"
+zh-hant = "Web 版本中必須保留至少一份文件，無法完全結束"
+
 [UtilsSelectedToUppercased]
 en = "Selected to UPPERCASED"
 ar = "Selection to UPPERCASED"
 bn = "নির্বাচিত অংশকে UPPERCASED করুন"
 zh-hans = "选中字母大写"
-zh-hant = "選中字母大寫"
+zh-hant = "將選擇的字轉成大寫"
 
 [UtilsSelectedToLowercased]
 en = "Selected to lowercased"
 ar = "Selection to lowercased"
 bn = "নির্বাচিত অংশকে lowercased করুন"
 zh-hans = "选中字母小写"
-zh-hant = "選中字母小寫"
+zh-hant = "將選擇的字轉成小寫"
