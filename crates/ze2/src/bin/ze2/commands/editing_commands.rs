@@ -5,7 +5,7 @@ use ze2::buffer::{CursorMovement, TextMarkKind};
 use ze2::tui::Context;
 
 use super::{Command, CommandArgs, CommandDefinition, CommandFocusTarget};
-use crate::localization::{loc, LocId};
+use crate::localization::{LocId, loc};
 use crate::state::State;
 
 pub(crate) const COMMANDS: &[CommandDefinition] = &[

@@ -2287,10 +2287,13 @@ impl TextBuffer {
                     }
                     TextMarkKind::Char => {
                         let [mark_beg, mark_end] = minmax(mark.beg, mark.end);
-                        let visual_beg = self.cursor_move_to_logical_internal(cursor_beg, mark_beg).visual_pos;
-                        let visual_end = self.cursor_move_to_logical_internal(cursor_beg, mark_end).visual_pos;
+                        let visual_beg =
+                            self.cursor_move_to_logical_internal(cursor_beg, mark_beg).visual_pos;
+                        let visual_end =
+                            self.cursor_move_to_logical_internal(cursor_beg, mark_end).visual_pos;
                         if visual_beg.y <= visual_line && visual_line <= visual_end.y {
-                            let vis_left = if visual_line == visual_beg.y { visual_beg.x } else { 0 };
+                            let vis_left =
+                                if visual_line == visual_beg.y { visual_beg.x } else { 0 };
                             let mut vis_right = if visual_line == visual_end.y {
                                 visual_end.x
                             } else {
@@ -2324,21 +2327,33 @@ impl TextBuffer {
                             && cursor_beg.logical_pos.y < rect.bottom
                         {
                             let mut cursor = cursor_beg;
-                            let left = if rect.left <= cursor_end.logical_pos.x && rect.left >= cursor_beg.logical_pos.x {
-                                cursor = self.cursor_move_to_logical_internal(cursor, Point { x: rect.left, y: cursor_beg.logical_pos.y });
+                            let left = if rect.left <= cursor_end.logical_pos.x
+                                && rect.left >= cursor_beg.logical_pos.x
+                            {
+                                cursor = self.cursor_move_to_logical_internal(
+                                    cursor,
+                                    Point { x: rect.left, y: cursor_beg.logical_pos.y },
+                                );
                                 cursor.visual_pos.x
                             } else {
                                 rect.left
                             };
-                            let right = if rect.right <= cursor_end.logical_pos.x && rect.right >= cursor_beg.logical_pos.x {
-                                cursor = self.cursor_move_to_logical_internal(cursor, Point { x: rect.right, y: cursor_beg.logical_pos.y });
+                            let right = if rect.right <= cursor_end.logical_pos.x
+                                && rect.right >= cursor_beg.logical_pos.x
+                            {
+                                cursor = self.cursor_move_to_logical_internal(
+                                    cursor,
+                                    Point { x: rect.right, y: cursor_beg.logical_pos.y },
+                                );
                                 cursor.visual_pos.x
                             } else {
                                 rect.right
                             };
 
-                            let screen_left = destination.left + self.margin_width + left - origin.x;
-                            let screen_right = destination.left + self.margin_width + right - origin.x;
+                            let screen_left =
+                                destination.left + self.margin_width + left - origin.x;
+                            let screen_right =
+                                destination.left + self.margin_width + right - origin.x;
                             let screen_top = destination.top + y;
                             let screen_rect = Rect {
                                 left: screen_left.max(destination.left + self.margin_width),
@@ -3220,7 +3235,8 @@ impl TextBuffer {
         let rect = self.block_rect(mark);
         self.edit_begin_grouping();
         for y in rect.top..rect.bottom {
-            let line_end = self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y });
+            let line_end =
+                self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y });
             let fill_width = rect.width() as usize;
             let mut fill = Vec::new();
             if line_end.logical_pos.x < rect.left {
