@@ -15,7 +15,7 @@ use ze2::{buffer, icu};
 use crate::apperr;
 use crate::documents::DocumentManager;
 use crate::localization::*;
-use crate::settings::{EditorColor, EofStyle, Settings};
+use crate::settings::{BindingMode, EditorColor, EofStyle, Settings};
 
 #[repr(transparent)]
 pub struct FormatApperr(apperr::Error);
@@ -143,6 +143,7 @@ pub struct State {
     pub wants_statusbar_focus: bool,
     pub wants_editor_focus: bool,
     pub wants_ruler: bool,
+    pub binding: BindingMode,
     pub reflow_left_margin: CoordType,
     pub reflow_right_margin: CoordType,
     pub reflow_paragraph_margin: CoordType,
@@ -219,6 +220,7 @@ impl State {
     pub fn new() -> apperr::Result<Self> {
         let settings = Settings::borrow();
         let settings_ruler = settings.ruler;
+        let settings_binding = settings.binding;
         let settings_center_text = settings.center_text;
         let settings_highlight_current_char = settings.highlight_current_char;
         let settings_editor_color = settings.editor_color;
@@ -240,6 +242,7 @@ impl State {
             wants_statusbar_focus: false,
             wants_editor_focus: false,
             wants_ruler: settings_ruler,
+            binding: settings_binding,
             reflow_left_margin: 0,
             reflow_right_margin: 0,
             reflow_paragraph_margin: 0,

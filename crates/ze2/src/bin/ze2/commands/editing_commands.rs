@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 use ze2::buffer::{CursorMovement, TextMarkKind};
+use ze2::helpers::{CoordType, Point};
 use ze2::tui::Context;
 
 use super::{Command, CommandArgs, CommandDefinition, CommandFocusTarget};
@@ -130,7 +131,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         argument_hint: None,
     },
     CommandDefinition {
-        command: Command::BeginWord,
+        command: Command::MoveToWordBegin,
         names: &["begin-word", "wb"],
         namesVim: &[],
         namesEmacs: &["backward-word"],
@@ -140,13 +141,33 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         argument_hint: None,
     },
     CommandDefinition {
-        command: Command::EndWord,
+        command: Command::MoveToWordEnd,
         names: &["end-word", "we"],
         namesVim: &[],
         namesEmacs: &["forward-word"],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
         handler: end_word,
+        argument_hint: None,
+    },
+    CommandDefinition {
+        command: Command::MoveToVisualLineBegin,
+        names: &["begin-visual-line"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: go_to_visual_line_begin,
+        argument_hint: None,
+    },
+    CommandDefinition {
+        command: Command::MoveToVisualLineEnd,
+        names: &["end-visual-line"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: go_to_visual_line_end,
         argument_hint: None,
     },
     CommandDefinition {
@@ -384,6 +405,20 @@ fn begin_word(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
 fn end_word(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
     if let Some(doc) = state.documents.active() {
         doc.buffer.borrow_mut().cursor_move_to_end_word();
+    }
+}
+
+fn go_to_visual_line_begin(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    if let Some(doc) = state.documents.active() {
+        let y = doc.buffer.borrow().cursor_visual_pos().y;
+        doc.buffer.borrow_mut().cursor_move_to_visual(Point { x: 0, y });
+    }
+}
+
+fn go_to_visual_line_end(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    if let Some(doc) = state.documents.active() {
+        let y = doc.buffer.borrow().cursor_visual_pos().y;
+        doc.buffer.borrow_mut().cursor_move_to_visual(Point { x: CoordType::MAX, y });
     }
 }
 

@@ -9,7 +9,7 @@ use super::arguments::command_bool_argument;
 use super::parse::normalize_command_name;
 use super::{Command, CommandArgs, CommandDefinition, CommandFocusTarget, command_definitions};
 use crate::localization::LocId;
-use crate::settings::Settings;
+use crate::settings::{BindingMode, Settings};
 use crate::state::*;
 
 pub(crate) const COMMANDS: &[CommandDefinition] = &[
@@ -52,6 +52,16 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         default_focus_target: CommandFocusTarget::Default,
         handler: enable_emacs_commands,
         argument_hint: Some("<bool>"),
+    },
+    CommandDefinition {
+        command: Command::SetBinding,
+        names: &["set-binding"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: set_binding,
+        argument_hint: Some("original|ghostty"),
     },
     CommandDefinition {
         command: Command::QuerySetting,
@@ -209,6 +219,18 @@ fn enable_emacs_commands(ctx: &mut Context, state: &mut State, args: CommandArgs
     }
 }
 
+fn set_binding(ctx: &mut Context, state: &mut State, args: CommandArgs) {
+    let binding = match args.argument.as_deref().map(str::trim) {
+        Some("ghostty") => BindingMode::Ghostty,
+        Some("original") => BindingMode::Original,
+        _ => return,
+    };
+    state.binding = binding;
+    if let Err(err) = Settings::set_binding(binding) {
+        error_log_add(ctx, state, err);
+    }
+}
+
 fn query_setting(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
     let Some(name) = args.argument.as_deref().map(str::trim).filter(|s| !s.is_empty()) else {
         return;
@@ -220,6 +242,13 @@ fn query_setting(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
             "tabs" | "tab" => format!("tabs {}", tb.tab_size()),
             "tabexpand" => format!("tabexpand {}", !tb.indent_with_tabs()),
             "wrap" | "word-wrap" => format!("wrap {}", tb.is_word_wrap_enabled()),
+            "binding" => format!(
+                "binding {}",
+                match state.binding {
+                    BindingMode::Original => "original",
+                    BindingMode::Ghostty => "ghostty",
+                }
+            ),
             "ruler" => format!("ruler {}", state.wants_ruler),
             "margins" => format!(
                 "margins {} {} {}",

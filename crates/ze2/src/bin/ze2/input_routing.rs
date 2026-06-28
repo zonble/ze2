@@ -5,9 +5,10 @@ use ze2::input::vk;
 use ze2::tui::Context;
 
 use crate::commands::{
-    CommandInvocation, command_invocation_from_shortcut, commandbar_shortcut_from_key,
+    Command, CommandInvocation, command_invocation_from_shortcut, commandbar_shortcut_from_key,
     should_handle_command_shortcut_before_editor,
 };
+use crate::settings::BindingMode;
 use crate::state::{State, StateSearchKind};
 
 pub fn handle_input_before_editor(
@@ -84,6 +85,21 @@ fn insert_text_invocation_before_editor(
     }
 
     let keyboard_input = ctx.keyboard_input()?;
+
+    if cfg!(any(target_os = "macos", target_os = "ios")) && state.binding == BindingMode::Ghostty {
+        if keyboard_input == crate::input::kbmod::CTRL | vk::A {
+            return Some(CommandInvocation {
+                command: Command::MoveToVisualLineBegin,
+                args: Default::default(),
+            });
+        }
+        if keyboard_input == crate::input::kbmod::CTRL | vk::E {
+            return Some(CommandInvocation {
+                command: Command::MoveToVisualLineEnd,
+                args: Default::default(),
+            });
+        }
+    }
 
     let invocation = command_invocation_from_shortcut(keyboard_input)?;
     if should_handle_command_shortcut_before_editor(invocation.command) {

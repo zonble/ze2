@@ -17,6 +17,7 @@ pub struct Settings {
     pub word_wrap: bool,
     pub word_wrap_column: CoordType,
     pub ruler: bool,
+    pub binding: BindingMode,
     pub center_text: bool,
     pub highlight_current_char: bool,
     pub editor_color: EditorColor,
@@ -59,6 +60,7 @@ impl Settings {
             word_wrap: false,
             word_wrap_column: 0,
             ruler: false,
+            binding: BindingMode::Original,
             center_text: false,
             highlight_current_char: false,
             editor_color: EditorColor::Original,
@@ -131,6 +133,13 @@ impl Settings {
             self.ruler = matches!(ruler, "on" | "true");
         }
 
+        if let Some(binding) = root.get_str("editor.binding") {
+            self.binding = match binding {
+                "ghostty" => BindingMode::Ghostty,
+                _ => BindingMode::Original,
+            };
+        }
+
         if let Some(column) = root.get_number("editor.wordWrapColumn") {
             self.word_wrap_column = normalize_word_wrap_column(column as CoordType);
         }
@@ -200,6 +209,18 @@ impl Settings {
         let settings = &mut *SETTINGS.0.borrow_mut();
         settings.path = path;
         settings.ruler = enabled;
+        Ok(())
+    }
+
+    pub fn set_binding(binding: BindingMode) -> apperr::Result<()> {
+        let value = match binding {
+            BindingMode::Original => "\"original\"",
+            BindingMode::Ghostty => "\"ghostty\"",
+        };
+        let path = Self::write_setting("editor.binding", value)?;
+        let settings = &mut *SETTINGS.0.borrow_mut();
+        settings.path = path;
+        settings.binding = binding;
         Ok(())
     }
 
@@ -576,4 +597,9 @@ mod tests {
             "{\n  // Keep this comment.\n  \"files.associations\": {\"*.foo\": \"text\"},\n  \"editor.wordWrap\": true\n}\n"
         );
     }
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum BindingMode {
+    Original,
+    Ghostty,
 }
