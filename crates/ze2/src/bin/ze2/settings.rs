@@ -249,6 +249,16 @@ impl Settings {
         Ok(())
     }
 
+    pub fn eof_style_marker_text(style: EofStyle) -> Option<&'static str> {
+        match style {
+            EofStyle::Original => {
+                Some(crate::localization::loc(crate::localization::LocId::EndOfFileMarker))
+            }
+            EofStyle::Classic => Some("迋═ Bottom of File 迋═"),
+            EofStyle::Ks3 | EofStyle::Hidden => None,
+        }
+    }
+
     pub fn set_word_wrap_column(column: CoordType) -> apperr::Result<()> {
         let column = normalize_word_wrap_column(column);
         let path = Self::write_setting("editor.wordWrapColumn", &column.to_string())?;

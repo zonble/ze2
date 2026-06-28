@@ -305,6 +305,12 @@ fn draw_menu_utils(ctx: &mut Context, state: &mut State) {
     if ctx.menubar_menu_button(loc(LocId::UtilsWordCount), 'W', vk::NULL) {
         execute_command(ctx, state, Command::WordCount);
     }
+    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToUppercased), 'U', vk::NULL) {
+        execute_command(ctx, state, Command::Uppercase);
+    }
+    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToLowercased), 'L', vk::NULL) {
+        execute_command(ctx, state, Command::Lowercase);
+    }
     ctx.menubar_menu_end();
 }
 

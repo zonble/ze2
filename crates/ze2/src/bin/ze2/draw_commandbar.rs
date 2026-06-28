@@ -43,7 +43,8 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
         }
 
         ctx.table_next_row();
-        ctx.label("prompt", ">");
+        let prompt = if ctx.contains_focus() { "▶" } else { "▷" };
+        ctx.label("prompt", prompt);
 
         if ctx.editline("input", &mut state.command_bar_input) {
             state.command_bar_error.clear();

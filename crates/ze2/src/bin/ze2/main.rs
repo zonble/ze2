@@ -331,7 +331,6 @@ fn print_version() {
 
 fn draw(ctx: &mut Context, state: &mut State) {
     draw_menubar(ctx, state, false);
-    context_set_eof_marker_for_style(ctx, state.eof_style);
 
     if ctx.keyboard_input().is_some() {
         state.command_bar_error.clear();
@@ -340,7 +339,6 @@ fn draw(ctx: &mut Context, state: &mut State) {
     if let Some(invocation) = handle_input_before_editor(ctx, state) {
         execute_command_invocation(ctx, state, invocation);
         ctx.set_input_consumed();
-        context_set_eof_marker_for_style(ctx, state.eof_style);
     }
 
     draw_editor(ctx, state);
@@ -417,20 +415,15 @@ fn draw(ctx: &mut Context, state: &mut State) {
 }
 
 fn set_eof_marker_for_style(tui: &mut Tui, style: EofStyle) {
+    if let Some(text) = Settings::eof_style_marker_text(style) {
+        tui.set_eof_marker(text);
+        return;
+    }
+
     match style {
-        EofStyle::Original => tui.set_eof_marker(loc(LocId::EndOfFileMarker)),
-        EofStyle::Classic => tui.set_eof_marker("迋═ Bottom of File 迋═"),
         EofStyle::Ks3 => tui.set_eof_marker_ks3(),
         EofStyle::Hidden => tui.set_eof_marker_hidden(),
-    }
-}
-
-fn context_set_eof_marker_for_style(ctx: &mut Context, style: EofStyle) {
-    match style {
-        EofStyle::Original => ctx.set_eof_marker(loc(LocId::EndOfFileMarker)),
-        EofStyle::Classic => ctx.set_eof_marker("迋═ Bottom of File 迋═"),
-        EofStyle::Ks3 => ctx.set_eof_marker_ks3(),
-        EofStyle::Hidden => ctx.set_eof_marker_hidden(),
+        _ => unreachable!(),
     }
 }
 
