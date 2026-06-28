@@ -107,9 +107,18 @@ pub enum TextMarkKind {
     Block,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+// This is stored on the mark itself so later render/edit paths can choose
+// the correct coordinate interpretation without guessing from `kind`.
+enum TextMarkCoordSystem {
+    Logical,
+    Visual,
+}
+
 #[derive(Copy, Clone)]
 struct TextMark {
     kind: TextMarkKind,
+    coord_system: TextMarkCoordSystem,
     beg: Point,
     end: Point,
 }
@@ -2327,10 +2336,11 @@ impl TextBuffer {
                             && cursor_beg.logical_pos.y < rect.bottom
                         {
                             let mut cursor = cursor_beg;
-                            let left = if rect.left <= cursor_end.logical_pos.x
-                                && rect.left >= cursor_beg.logical_pos.x
+                            // Block marks are visual, so compare against visual positions here.
+                            let left = if rect.left <= cursor_end.visual_pos.x
+                                && rect.left >= cursor_beg.visual_pos.x
                             {
-                                cursor = self.cursor_move_to_logical_internal(
+                                cursor = self.cursor_move_to_visual_internal(
                                     cursor,
                                     Point { x: rect.left, y: cursor_beg.logical_pos.y },
                                 );
@@ -2338,10 +2348,10 @@ impl TextBuffer {
                             } else {
                                 rect.left
                             };
-                            let right = if rect.right <= cursor_end.logical_pos.x
-                                && rect.right >= cursor_beg.logical_pos.x
+                            let right = if rect.right <= cursor_end.visual_pos.x
+                                && rect.right >= cursor_beg.visual_pos.x
                             {
-                                cursor = self.cursor_move_to_logical_internal(
+                                cursor = self.cursor_move_to_visual_internal(
                                     cursor,
                                     Point { x: rect.right, y: cursor_beg.logical_pos.y },
                                 );
@@ -2841,28 +2851,37 @@ impl TextBuffer {
     }
 
     pub fn mark(&mut self, kind: TextMarkKind) {
-        let pos = self.cursor.logical_pos;
+        let pos = match kind {
+            TextMarkKind::Block => self.cursor.visual_pos,
+            TextMarkKind::Line | TextMarkKind::Char => self.cursor.logical_pos,
+        };
+        let coord_system = match kind {
+            TextMarkKind::Block => TextMarkCoordSystem::Visual,
+            TextMarkKind::Line | TextMarkKind::Char => TextMarkCoordSystem::Logical,
+        };
         self.mark = Some(match self.mark {
+            // Updating an exiting mark.
             Some(mark) if mark.kind == kind => TextMark { end: pos, ..mark },
-            _ => TextMark { kind, beg: pos, end: pos },
+            // Creating a new mark.
+            _ => TextMark { kind, coord_system, beg: pos, end: pos },
         });
 
-        match kind {
-            TextMarkKind::Line => {
-                let [beg, end] = minmax(self.mark.unwrap().beg.y, self.mark.unwrap().end.y);
-                self.set_selection(Some(TextBufferSelection {
-                    beg: Point { x: 0, y: beg },
-                    end: Point { x: 0, y: end + 1 },
-                }));
-            }
-            TextMarkKind::Char => {
-                let mark = self.mark.unwrap();
-                self.set_selection(Some(TextBufferSelection { beg: mark.beg, end: mark.end }));
-            }
-            TextMarkKind::Block => {
-                self.set_selection(None);
-            }
-        }
+        // match kind {
+        //     TextMarkKind::Line => {
+        //         let [beg, end] = minmax(self.mark.unwrap().beg.y, self.mark.unwrap().end.y);
+        //         self.set_selection(Some(TextBufferSelection {
+        //             beg: Point { x: 0, y: beg },
+        //             end: Point { x: 0, y: end + 1 },
+        //         }));
+        //     }
+        //     TextMarkKind::Char => {
+        //         let mark = self.mark.unwrap();
+        //         self.set_selection(Some(TextBufferSelection { beg: mark.beg, end: mark.end }));
+        //     }
+        //     TextMarkKind::Block => {
+        //         self.set_selection(None);
+        //     }
+        // }
     }
 
     pub fn clear_mark(&mut self) {
@@ -2983,6 +3002,7 @@ impl TextBuffer {
                 self.edit_delete(end);
                 self.edit_write(&replacement);
                 self.edit_end();
+                self.mark = Some(TextMark { end: self.cursor.logical_pos, ..mark });
             }
             TextMarkKind::Block => self.fill_block_mark(mark, ch),
         }
@@ -3046,7 +3066,7 @@ impl TextBuffer {
     }
 
     fn append_filled_segment(replacement: &mut Vec<u8>, segment: &[u8], ch: u8) {
-        let count = MeasurementConfig::new(&segment).goto_offset(segment.len()).logical_pos.x;
+        let count = MeasurementConfig::new(&segment).goto_offset(segment.len()).visual_pos.x;
         replacement.resize(replacement.len() + count as usize, ch);
     }
 
@@ -3196,12 +3216,29 @@ impl TextBuffer {
     }
 
     fn block_rect(&self, mark: TextMark) -> Rect {
+        // The mark carries its own coordinate system, so block math must follow that
+        // system consistently in render/fill/move/copy paths.
+        let (beg, end) = match mark.coord_system {
+            TextMarkCoordSystem::Logical => (
+                self.cursor_move_to_visual_from_line_start(mark.beg.y, mark.beg.x),
+                self.cursor_move_to_visual_from_line_start(mark.end.y, mark.end.x),
+            ),
+            TextMarkCoordSystem::Visual => (
+                self.cursor_move_to_visual_from_line_start(mark.beg.y, mark.beg.x),
+                self.cursor_move_to_visual_from_line_start(mark.end.y, mark.end.x),
+            ),
+        };
         Rect {
-            left: mark.beg.x.min(mark.end.x),
+            left: beg.visual_pos.x.min(end.visual_pos.x),
             top: mark.beg.y.min(mark.end.y),
-            right: mark.beg.x.max(mark.end.x) + 1,
+            right: beg.visual_pos.x.max(end.visual_pos.x) + 1,
             bottom: mark.beg.y.max(mark.end.y) + 1,
         }
+    }
+
+    fn cursor_move_to_visual_from_line_start(&self, y: CoordType, x: CoordType) -> Cursor {
+        let cursor = self.goto_line_start(self.cursor, y);
+        self.cursor_move_to_visual_internal(cursor, Point { x, y })
     }
 
     fn extract_block_mark(&self, mark: TextMark) -> Vec<u8> {
@@ -3215,8 +3252,8 @@ impl TextBuffer {
             if y > rect.top {
                 out.push(b'\n');
             }
-            let beg = self.cursor_move_to_logical_internal(self.cursor, Point { x: rect.left, y });
-            let end = self.cursor_move_to_logical_internal(beg, Point { x: rect.right, y });
+            let beg = self.cursor_move_to_visual_from_line_start(y, rect.left);
+            let end = self.cursor_move_to_visual_from_line_start(y, rect.right);
             self.buffer.extract_raw(beg.offset..end.offset, &mut out, usize::MAX);
         }
         out
@@ -3226,7 +3263,9 @@ impl TextBuffer {
         let rect = self.block_rect(mark);
         self.edit_begin_grouping();
         for y in (rect.top..rect.bottom).rev() {
-            self.replace_logical_range(Point { x: rect.left, y }, Point { x: rect.right, y }, b"");
+            let beg = self.cursor_move_to_visual_from_line_start(y, rect.left);
+            let end = self.cursor_move_to_visual_from_line_start(y, rect.right);
+            self.replace_logical_range(beg.logical_pos, end.logical_pos, b"");
         }
         self.edit_end_grouping();
     }
@@ -3235,19 +3274,10 @@ impl TextBuffer {
         let rect = self.block_rect(mark);
         self.edit_begin_grouping();
         for y in rect.top..rect.bottom {
-            let line_end =
-                self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y });
-            let fill_width = rect.width() as usize;
-            let mut fill = Vec::new();
-            if line_end.logical_pos.x < rect.left {
-                fill.resize((rect.left - line_end.logical_pos.x) as usize, b' ');
-            }
-            fill.resize(fill.len() + fill_width, ch);
-            self.replace_logical_range(
-                Point { x: line_end.logical_pos.x.min(rect.left), y },
-                Point { x: rect.right, y },
-                &fill,
-            );
+            let beg = self.cursor_move_to_visual_from_line_start(y, rect.left);
+            let end = self.cursor_move_to_visual_from_line_start(y, rect.right);
+            let fill = vec![ch; rect.width() as usize];
+            self.replace_logical_range(beg.logical_pos, end.logical_pos, &fill);
         }
         self.edit_end_grouping();
     }
@@ -4403,6 +4433,40 @@ mod tests {
     }
 
     #[test]
+    fn fill_mark_uses_visual_width_for_wide_characters() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw("中文".as_bytes());
+        buf.cursor_move_to_logical(Point { x: 0, y: 0 });
+        buf.mark(TextMarkKind::Char);
+        buf.cursor_move_to_logical(Point { x: 2, y: 0 });
+        buf.mark(TextMarkKind::Char);
+
+        buf.fill_mark(b"z");
+
+        assert_eq!(buffer_contents(&mut buf), "zzzz");
+    }
+
+    #[test]
+    fn fill_mark_updates_char_mark_end_to_replacement_end() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw("中文".as_bytes());
+        buf.cursor_move_to_logical(Point { x: 0, y: 0 });
+        buf.mark(TextMarkKind::Char);
+        buf.cursor_move_to_logical(Point { x: 2, y: 0 });
+        buf.mark(TextMarkKind::Char);
+
+        buf.fill_mark(b"z");
+
+        let mark = buf.mark.unwrap();
+        assert_eq!(mark.beg, Point { x: 0, y: 0 });
+        assert_eq!(mark.end, Point { x: 4, y: 0 });
+    }
+
+    #[test]
     fn overlay_block_from_clipboard_works_after_delete_clears_mark() {
         let mut buf = TextBuffer::new(false).unwrap();
         let mut clipboard = Clipboard::default();
@@ -4551,6 +4615,36 @@ mod tests {
         buf.fill_mark(b"x");
 
         assert_eq!(buffer_contents(&mut buf), "axxd\ncxx");
+    }
+
+    #[test]
+    fn block_mark_uses_visual_width_for_wide_characters() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw("block 畢竟覺".as_bytes());
+        buf.cursor_move_to_logical(Point { x: 6, y: 0 });
+        buf.mark(TextMarkKind::Block);
+        buf.cursor_move_to_logical(Point { x: 7, y: 0 });
+        buf.mark(TextMarkKind::Block);
+
+        assert_eq!(buffer_contents(&mut buf), "block 畢竟覺");
+        buf.fill_mark(b"x");
+        assert_eq!(buffer_contents(&mut buf), "block xxx竟覺");
+    }
+
+    #[test]
+    fn block_mark_left_edge_tracks_wide_prefix() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw("So中me(mark) if mark.kind == kind => TextMark {".as_bytes());
+        buf.cursor_move_to_logical(Point { x: 3, y: 0 });
+        buf.mark(TextMarkKind::Block);
+        buf.cursor_move_to_logical(Point { x: 4, y: 0 });
+        buf.mark(TextMarkKind::Block);
+
+        assert_eq!(buffer_contents(&mut buf), "So中me(mark) if mark.kind == kind => TextMark {");
     }
 
     #[test]
