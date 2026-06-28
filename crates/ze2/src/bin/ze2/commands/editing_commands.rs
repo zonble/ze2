@@ -5,7 +5,7 @@ use ze2::buffer::{CursorMovement, TextMarkKind};
 use ze2::tui::Context;
 
 use super::{Command, CommandArgs, CommandDefinition, CommandFocusTarget};
-use crate::localization::LocId;
+use crate::localization::{loc, LocId};
 use crate::state::State;
 
 pub(crate) const COMMANDS: &[CommandDefinition] = &[
@@ -413,7 +413,12 @@ fn mark_char(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
 
 fn mark_block(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
     if let Some(doc) = state.documents.active() {
-        doc.buffer.borrow_mut().mark(TextMarkKind::Block);
+        let mut tb = doc.buffer.borrow_mut();
+        if tb.is_word_wrap_enabled() {
+            state.command_bar_error = loc(LocId::CommandMarkBlockWordWrapEnabled).to_string();
+            return;
+        }
+        tb.mark(TextMarkKind::Block);
     }
 }
 

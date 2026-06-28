@@ -333,6 +333,10 @@ fn draw(ctx: &mut Context, state: &mut State) {
     draw_menubar(ctx, state, false);
     context_set_eof_marker_for_style(ctx, state.eof_style);
 
+    if ctx.keyboard_input().is_some() {
+        state.command_bar_error.clear();
+    }
+
     if let Some(invocation) = handle_input_before_editor(ctx, state) {
         execute_command_invocation(ctx, state, invocation);
         ctx.set_input_consumed();
@@ -396,6 +400,7 @@ fn draw(ctx: &mut Context, state: &mut State) {
 
     if let Some(key) = ctx.keyboard_input() {
         // Shortcuts that are not handled as part of the textarea, etc.
+        state.command_bar_error.clear();
 
         if let Some(invocation) = command_invocation_from_shortcut(key) {
             execute_command_invocation(ctx, state, invocation);

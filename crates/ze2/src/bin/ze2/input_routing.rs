@@ -71,7 +71,10 @@ fn focus_commandbar_before_editor(ctx: &Context, state: &mut State) -> bool {
     true
 }
 
-fn insert_text_invocation_before_editor(ctx: &Context, state: &State) -> Option<CommandInvocation> {
+fn insert_text_invocation_before_editor(
+    ctx: &Context,
+    state: &mut State,
+) -> Option<CommandInvocation> {
     if state.command_bar_active
         || !matches!(state.wants_search.kind, StateSearchKind::Hidden | StateSearchKind::Disabled)
         || state.wants_dialog()
@@ -80,6 +83,14 @@ fn insert_text_invocation_before_editor(ctx: &Context, state: &State) -> Option<
         return None;
     }
 
-    let invocation = command_invocation_from_shortcut(ctx.keyboard_input()?)?;
-    should_handle_command_shortcut_before_editor(invocation.command).then_some(invocation)
+    let Some(keyboard_input) = ctx.keyboard_input() else {
+        return None;
+    };
+
+    let invocation = command_invocation_from_shortcut(keyboard_input)?;
+    if should_handle_command_shortcut_before_editor(invocation.command) {
+        Some(invocation)
+    } else {
+        None
+    }
 }

@@ -25,6 +25,11 @@ pub fn draw_commandbar(ctx: &mut Context, state: &mut State) {
     ctx.attr_intrinsic_size(Size { width: COORD_TYPE_SAFE_MAX, height: 1 });
     ctx.attr_padding(Rect::two(0, 1));
     {
+        if has_error && ctx.keyboard_input().is_some() {
+            state.command_bar_error.clear();
+            has_error = false;
+        }
+
         if ctx.contains_focus()
             && ctx.keyboard_input() == Some(vk::ESCAPE)
             && !state.wants_dialog()

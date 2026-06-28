@@ -2262,6 +2262,102 @@ impl TextBuffer {
 
             let mut selection_off = 0..0;
 
+            // Draw the current mark underneath selection so selection can still
+            // be rendered on top of it.
+            if let Some(mark) = self.mark {
+                match mark.kind {
+                    TextMarkKind::Line => {
+                        let [mark_beg_y, mark_end_y] = minmax(mark.beg.y, mark.end.y);
+                        if visual_line < self.stats.visual_lines
+                            && (mark_beg_y..=mark_end_y).contains(&cursor_beg.logical_pos.y)
+                        {
+                            let top = destination.top + y;
+                            let bg = fb.indexed(IndexedColor::Red);
+                            let fg = fb.contrasted(bg);
+                            let right = if self.word_wrap_column > 0 {
+                                (destination.left + self.margin_width + self.word_wrap_column)
+                                    .min(destination.right)
+                            } else {
+                                destination.right
+                            };
+                            let rect = Rect { left: destination.left, top, right, bottom: top + 1 };
+                            fb.blend_bg(rect, bg);
+                            fb.blend_fg(rect, fg);
+                        }
+                    }
+                    TextMarkKind::Char => {
+                        let [mark_beg, mark_end] = minmax(mark.beg, mark.end);
+                        let visual_beg = self.cursor_move_to_logical_internal(cursor_beg, mark_beg).visual_pos;
+                        let visual_end = self.cursor_move_to_logical_internal(cursor_beg, mark_end).visual_pos;
+                        if visual_beg.y <= visual_line && visual_line <= visual_end.y {
+                            let vis_left = if visual_line == visual_beg.y { visual_beg.x } else { 0 };
+                            let mut vis_right = if visual_line == visual_end.y {
+                                visual_end.x
+                            } else {
+                                COORD_TYPE_SAFE_MAX
+                            };
+
+                            if self.word_wrap_column > 0 {
+                                vis_right = vis_right.min(self.word_wrap_column);
+                            }
+
+                            let text_left = destination.left + self.margin_width;
+                            let rect = Rect {
+                                left: (text_left + vis_left - origin.x).max(text_left),
+                                top: destination.top + y,
+                                right: (text_left + vis_right - origin.x).min(destination.right),
+                                bottom: destination.top + y + 1,
+                            };
+
+                            if rect.left < rect.right {
+                                let bg = fb.indexed(IndexedColor::Red);
+                                let fg = fb.contrasted(bg);
+                                fb.blend_bg(rect, bg);
+                                fb.blend_fg(rect, fg);
+                            }
+                        }
+                    }
+                    TextMarkKind::Block => {
+                        let rect = self.block_rect(mark);
+                        if visual_line < self.stats.visual_lines
+                            && rect.top <= cursor_beg.logical_pos.y
+                            && cursor_beg.logical_pos.y < rect.bottom
+                        {
+                            let mut cursor = cursor_beg;
+                            let left = if rect.left <= cursor_end.logical_pos.x && rect.left >= cursor_beg.logical_pos.x {
+                                cursor = self.cursor_move_to_logical_internal(cursor, Point { x: rect.left, y: cursor_beg.logical_pos.y });
+                                cursor.visual_pos.x
+                            } else {
+                                rect.left
+                            };
+                            let right = if rect.right <= cursor_end.logical_pos.x && rect.right >= cursor_beg.logical_pos.x {
+                                cursor = self.cursor_move_to_logical_internal(cursor, Point { x: rect.right, y: cursor_beg.logical_pos.y });
+                                cursor.visual_pos.x
+                            } else {
+                                rect.right
+                            };
+
+                            let screen_left = destination.left + self.margin_width + left - origin.x;
+                            let screen_right = destination.left + self.margin_width + right - origin.x;
+                            let screen_top = destination.top + y;
+                            let screen_rect = Rect {
+                                left: screen_left.max(destination.left + self.margin_width),
+                                top: screen_top,
+                                right: screen_right.min(destination.right),
+                                bottom: screen_top + 1,
+                            };
+
+                            if screen_rect.left < screen_rect.right {
+                                let bg = fb.indexed(IndexedColor::Red);
+                                let fg = fb.contrasted(bg);
+                                fb.blend_bg(screen_rect, bg);
+                                fb.blend_fg(screen_rect, fg);
+                            }
+                        }
+                    }
+                }
+            }
+
             // Figure out the selection range on this line, if any.
             if cursor_beg.visual_pos.y == visual_line
                 && selection_beg <= cursor_end.logical_pos

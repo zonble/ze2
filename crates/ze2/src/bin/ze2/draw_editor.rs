@@ -51,7 +51,7 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
 
         let effective_wrap_column = if word_wrap_enabled { word_wrap_column } else { 0 };
 
-        let changed = ctx.textarea(
+        ctx.textarea(
             "textarea",
             doc.buffer.clone(),
             state.wants_ruler,
@@ -59,9 +59,6 @@ pub fn draw_editor(ctx: &mut Context, state: &mut State) {
             center_offset,
             state.highlight_current_char,
         );
-        if changed {
-            state.command_bar_error.clear();
-        }
         if state.editor_color == EditorColor::WhiteOnBlue {
             ctx.attr_background_rgba(ctx.indexed(IndexedColor::Blue));
             ctx.attr_foreground_rgba(ctx.indexed(IndexedColor::BrightWhite));

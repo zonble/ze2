@@ -117,9 +117,13 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
 fn word_wrap(ctx: &mut Context, state: &mut State, args: CommandArgs) {
     if let Some(doc) = state.documents.active() {
         let mut tb = doc.buffer.borrow_mut();
+        let was_enabled = tb.is_word_wrap_enabled();
         let word_wrap =
             command_bool_argument(&args.argument).unwrap_or_else(|| !tb.is_word_wrap_enabled());
         tb.set_word_wrap(word_wrap);
+        if !was_enabled && word_wrap {
+            tb.clear_mark();
+        }
         drop(tb);
         if let Err(err) = Settings::set_word_wrap(word_wrap) {
             error_log_add(ctx, state, err);
