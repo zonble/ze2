@@ -83,9 +83,7 @@ fn insert_text_invocation_before_editor(
         return None;
     }
 
-    let Some(keyboard_input) = ctx.keyboard_input() else {
-        return None;
-    };
+    let keyboard_input = ctx.keyboard_input()?;
 
     let invocation = command_invocation_from_shortcut(keyboard_input)?;
     if should_handle_command_shortcut_before_editor(invocation.command) {
