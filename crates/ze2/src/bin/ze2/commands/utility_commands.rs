@@ -189,15 +189,17 @@ fn lowercase(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
     }
 }
 
-fn char_code(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
-    if let Some(doc) = state.documents.active() {
-        state.command_bar_error = doc
-            .buffer
-            .borrow()
-            .current_char()
-            .map_or_else(|| "char EOF".to_string(), |ch| format!("char {}", ch as u32));
-        state.command_bar_active = true;
-    }
+fn char_code(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
+    let ch =
+        args.argument.as_deref().and_then(|text| text.chars().next()).or_else(|| {
+            state.documents.active().and_then(|doc| doc.buffer.borrow().current_char())
+        });
+
+    state.command_bar_error = ch.map_or_else(
+        || "char EOF".to_string(),
+        |ch| format!("char {} 0x{:X}", ch as u32, ch as u32),
+    );
+    state.command_bar_active = true;
 }
 
 fn help(_ctx: &mut Context, state: &mut State, args: CommandArgs) {

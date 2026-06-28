@@ -2865,23 +2865,6 @@ impl TextBuffer {
             // Creating a new mark.
             _ => TextMark { kind, coord_system, beg: pos, end: pos },
         });
-
-        // match kind {
-        //     TextMarkKind::Line => {
-        //         let [beg, end] = minmax(self.mark.unwrap().beg.y, self.mark.unwrap().end.y);
-        //         self.set_selection(Some(TextBufferSelection {
-        //             beg: Point { x: 0, y: beg },
-        //             end: Point { x: 0, y: end + 1 },
-        //         }));
-        //     }
-        //     TextMarkKind::Char => {
-        //         let mark = self.mark.unwrap();
-        //         self.set_selection(Some(TextBufferSelection { beg: mark.beg, end: mark.end }));
-        //     }
-        //     TextMarkKind::Block => {
-        //         self.set_selection(None);
-        //     }
-        // }
     }
 
     pub fn clear_mark(&mut self) {
