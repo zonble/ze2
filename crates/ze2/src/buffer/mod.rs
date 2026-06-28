@@ -3218,11 +3218,17 @@ impl TextBuffer {
 
     fn fill_block_mark(&mut self, mark: TextMark, ch: u8) {
         let rect = self.block_rect(mark);
-        let fill = vec![ch; rect.width() as usize];
         self.edit_begin_grouping();
         for y in rect.top..rect.bottom {
+            let line_end = self.cursor_move_to_logical_internal(self.cursor, Point { x: CoordType::MAX, y });
+            let fill_width = rect.width() as usize;
+            let mut fill = Vec::new();
+            if line_end.logical_pos.x < rect.left {
+                fill.resize((rect.left - line_end.logical_pos.x) as usize, b' ');
+            }
+            fill.resize(fill.len() + fill_width, ch);
             self.replace_logical_range(
-                Point { x: rect.left, y },
+                Point { x: line_end.logical_pos.x.min(rect.left), y },
                 Point { x: rect.right, y },
                 &fill,
             );
@@ -4513,6 +4519,22 @@ mod tests {
         buf.shift_block_mark(true);
 
         assert_eq!(buffer_contents(&mut buf), "    abc");
+    }
+
+    #[test]
+    fn fill_block_pads_short_lines_before_filling() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"abcd\nc");
+        buf.cursor_move_to_logical(Point { x: 2, y: 0 });
+        buf.mark(TextMarkKind::Block);
+        buf.cursor_move_to_logical(Point { x: 3, y: 1 });
+        buf.mark(TextMarkKind::Block);
+
+        buf.fill_mark(b"x");
+
+        assert_eq!(buffer_contents(&mut buf), "abxx\nc xx");
     }
 
     #[test]
