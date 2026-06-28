@@ -220,7 +220,9 @@ fn commandbar_autocomplete_context(input: &str) -> CommandbarAutocompleteContext
         return CommandbarAutocompleteContext { prefix: Some(arg), head: &input[..head_len], tail };
     }
 
-    if let Some((head, tail)) = input.split_once(char::is_whitespace) {
+    if let Some(head_len) = input.find(char::is_whitespace) {
+        let head = &input[..head_len];
+        let tail = &input[head_len..];
         return CommandbarAutocompleteContext { prefix: Some(head), head: "", tail };
     }
 
