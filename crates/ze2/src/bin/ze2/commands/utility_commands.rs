@@ -95,7 +95,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::TransformHalfWidth,
-        names: &["transform-half-width", "halfwidth"],
+        names: &["transform-half-width", "halfwidth", "hw"],
         namesVim: &[],
         namesEmacs: &[],
         loc_id: None,
@@ -105,7 +105,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::TransformFullWidth,
-        names: &["transform-full-width", "fullwidth"],
+        names: &["transform-full-width", "fullwidth", "fw"],
         namesVim: &[],
         namesEmacs: &[],
         loc_id: None,
@@ -145,7 +145,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::TransformSimplifiedChinese,
-        names: &["transform-simplified-chinese", "simplified-chinese"],
+        names: &["transform-simplified-chinese", "simplified-chinese", "sc"],
         namesVim: &[],
         namesEmacs: &[],
         loc_id: None,
@@ -155,7 +155,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::TransformTraditionalChinese,
-        names: &["transform-traditional-chinese", "traditional-chinese"],
+        names: &["transform-traditional-chinese", "traditional-chinese", "tc"],
         namesVim: &[],
         namesEmacs: &[],
         loc_id: None,
@@ -165,7 +165,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     },
     CommandDefinition {
         command: Command::CharCode,
-        names: &["char-code", "char"],
+        names: &["char-code", "char", "chr"],
         namesVim: &[],
         namesEmacs: &[],
         loc_id: None,
@@ -176,7 +176,7 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
     CommandDefinition {
         command: Command::Help,
         names: &["help"],
-        namesVim: &["help"],
+        namesVim: &[""],
         namesEmacs: &["describe-bindings"],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
