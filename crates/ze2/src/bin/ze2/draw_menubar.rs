@@ -305,32 +305,35 @@ fn draw_menu_utils(ctx: &mut Context, state: &mut State) {
     if ctx.menubar_menu_button(loc(LocId::UtilsWordCount), 'W', vk::NULL) {
         execute_command(ctx, state, Command::WordCount);
     }
-    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToSimplifiedChinese), 'S', vk::NULL) {
-        execute_command(ctx, state, Command::TransformSimplifiedChinese);
-    }
-    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToTraditionalChinese), 'T', vk::NULL) {
-        execute_command(ctx, state, Command::TransformTraditionalChinese);
-    }
-    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToUppercased), 'U', vk::NULL) {
-        execute_command(ctx, state, Command::TransformUppercase);
-    }
-    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToLowercased), 'L', vk::NULL) {
-        execute_command(ctx, state, Command::TransformLowercase);
-    }
-    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToHalfWidth), 'H', vk::NULL) {
-        execute_command(ctx, state, Command::TransformHalfWidth);
-    }
-    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToFullWidth), 'F', vk::NULL) {
-        execute_command(ctx, state, Command::TransformFullWidth);
-    }
-    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToLatin), 'A', vk::NULL) {
-        execute_command(ctx, state, Command::TransformLatin);
-    }
-    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToKatakana), 'K', vk::NULL) {
-        execute_command(ctx, state, Command::TransformKatakana);
-    }
-    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToHiragana), 'I', vk::NULL) {
-        execute_command(ctx, state, Command::TransformHiragana);
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToSimplifiedChinese), 'S', vk::NULL) {
+            execute_command(ctx, state, Command::TransformSimplifiedChinese);
+        }
+        if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToTraditionalChinese), 'T', vk::NULL) {
+            execute_command(ctx, state, Command::TransformTraditionalChinese);
+        }
+        if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToUppercased), 'U', vk::NULL) {
+            execute_command(ctx, state, Command::TransformUppercase);
+        }
+        if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToLowercased), 'L', vk::NULL) {
+            execute_command(ctx, state, Command::TransformLowercase);
+        }
+        if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToHalfWidth), 'H', vk::NULL) {
+            execute_command(ctx, state, Command::TransformHalfWidth);
+        }
+        if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToFullWidth), 'F', vk::NULL) {
+            execute_command(ctx, state, Command::TransformFullWidth);
+        }
+        if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToLatin), 'A', vk::NULL) {
+            execute_command(ctx, state, Command::TransformLatin);
+        }
+        if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToKatakana), 'K', vk::NULL) {
+            execute_command(ctx, state, Command::TransformKatakana);
+        }
+        if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToHiragana), 'I', vk::NULL) {
+            execute_command(ctx, state, Command::TransformHiragana);
+        }
     }
 
     ctx.menubar_menu_end();

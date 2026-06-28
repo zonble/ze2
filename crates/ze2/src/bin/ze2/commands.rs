@@ -39,11 +39,38 @@ const COMMAND_GROUPS: &[&[CommandDefinition]] = &[
 ];
 
 pub(crate) fn command_definitions() -> impl Iterator<Item = &'static CommandDefinition> {
-    COMMAND_GROUPS.iter().flat_map(|group| group.iter())
+    COMMAND_GROUPS
+        .iter()
+        .flat_map(|group| group.iter())
+        .filter(|definition| command_visible_in_current_target(definition.command))
 }
 
 fn command_definition(command: Command) -> Option<&'static CommandDefinition> {
     command_definitions().find(|definition| definition.command == command)
+}
+
+fn command_visible_in_current_target(command: Command) -> bool {
+    #[cfg(target_arch = "wasm32")]
+    {
+        !matches!(
+            command,
+            Command::TransformUppercase
+                | Command::TransformLowercase
+                | Command::TransformHalfWidth
+                | Command::TransformFullWidth
+                | Command::TransformLatin
+                | Command::TransformKatakana
+                | Command::TransformHiragana
+                | Command::TransformSimplifiedChinese
+                | Command::TransformTraditionalChinese
+        )
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = command;
+        true
+    }
 }
 
 pub fn execute_command(ctx: &mut Context, state: &mut State, command: Command) {
