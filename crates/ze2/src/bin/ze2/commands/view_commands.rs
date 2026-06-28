@@ -73,6 +73,16 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         argument_hint: Some("<bool>"),
     },
     CommandDefinition {
+        command: Command::ToggleRuler,
+        names: &["toggle-ruler", "set-ruler"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: Some(LocId::ViewRuler),
+        default_focus_target: CommandFocusTarget::Default,
+        handler: toggle_ruler,
+        argument_hint: None,
+    },
+    CommandDefinition {
         command: Command::SetHighlightCurrentChar,
         names: &["set-highlight-current-char"],
         namesVim: &[],
@@ -222,6 +232,13 @@ fn center_text(ctx: &mut Context, state: &mut State, args: CommandArgs) {
     let center_text = command_bool_argument(&args.argument).unwrap_or(!state.wants_center_text);
     state.wants_center_text = center_text;
     if let Err(err) = Settings::set_center_text(center_text) {
+        error_log_add(ctx, state, err);
+    }
+}
+
+fn toggle_ruler(ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    state.wants_ruler = !state.wants_ruler;
+    if let Err(err) = Settings::set_ruler(state.wants_ruler) {
         error_log_add(ctx, state, err);
     }
 }

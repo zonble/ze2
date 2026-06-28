@@ -307,7 +307,7 @@ impl State {
             // System & Lifecycle State
             osc_title_file_status: Default::default(),
             osc_clipboard_sync: false,
-            osc_clipboard_always_send: false,
+            osc_clipboard_always_send: true,
             exit: false,
         })
     }

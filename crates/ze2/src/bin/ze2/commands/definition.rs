@@ -60,6 +60,7 @@ pub enum Command {
     Reflow,
     Menu,
     CenterText,
+    ToggleRuler,
     SetHighlightCurrentChar,
     ToggleHighlightCurrentChar,
     SetEditorColor,

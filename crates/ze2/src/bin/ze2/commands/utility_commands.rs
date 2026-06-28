@@ -220,6 +220,7 @@ fn query_setting(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
             "tabs" | "tab" => format!("tabs {}", tb.tab_size()),
             "tabexpand" => format!("tabexpand {}", !tb.indent_with_tabs()),
             "wrap" | "word-wrap" => format!("wrap {}", tb.is_word_wrap_enabled()),
+            "ruler" => format!("ruler {}", state.wants_ruler),
             "margins" => format!(
                 "margins {} {} {}",
                 state.reflow_left_margin,
