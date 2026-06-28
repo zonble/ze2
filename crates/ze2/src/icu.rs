@@ -956,6 +956,9 @@ struct LibraryFunctions {
     uregex_groupCount: icu_ffi::uregex_groupCount,
     uregex_start64: icu_ffi::uregex_start64,
     uregex_end64: icu_ffi::uregex_end64,
+    utrans_openU: icu_ffi::utrans_openU,
+    utrans_close: icu_ffi::utrans_close,
+    utrans_transUChars: icu_ffi::utrans_transUChars,
 }
 
 macro_rules! proc_name {
@@ -981,7 +984,7 @@ const LIBICUUC_PROC_NAMES: [*const c_char; 10] = [
 ];
 
 // Found in libicui18n.so on UNIX, icuin.dll/icu.dll on Windows.
-const LIBICUI18N_PROC_NAMES: [*const c_char; 12] = [
+const LIBICUI18N_PROC_NAMES: [*const c_char; 15] = [
     proc_name!("ucol_open"),
     proc_name!("ucol_setAttribute"),
     proc_name!("ucol_strcollUTF8"),
@@ -994,6 +997,9 @@ const LIBICUI18N_PROC_NAMES: [*const c_char; 12] = [
     proc_name!("uregex_groupCount"),
     proc_name!("uregex_start64"),
     proc_name!("uregex_end64"),
+    proc_name!("utrans_openU"),
+    proc_name!("utrans_close"),
+    proc_name!("utrans_transUChars"),
 ];
 
 static LIBRARY_FUNCTIONS: OnceLock<Option<LibraryFunctions>> = OnceLock::new();
@@ -1076,6 +1082,66 @@ fn assume_loaded() -> &'static LibraryFunctions {
     }
 }
 
+pub fn transform_text(id: &str, text: &[u8]) -> Result<Vec<u8>> {
+    let f = init_if_needed()?;
+
+    let mut status = icu_ffi::U_ZERO_ERROR;
+    let id: Vec<u16> = id.encode_utf16().chain([0]).collect();
+    let trans = unsafe {
+        (f.utrans_openU)(
+            id.as_ptr(),
+            -1,
+            icu_ffi::UTransDirection::UTRANS_FORWARD,
+            null(),
+            0,
+            null_mut(),
+            &mut status,
+        )
+    };
+    if status.is_failure() || trans.is_null() {
+        return Err(ICU_MISSING_ERROR);
+    }
+
+    let input: Vec<u16> = String::from_utf8_lossy(text).encode_utf16().collect();
+    let mut capacity = input.len().max(16) + 16;
+    let mut output = Vec::new();
+    loop {
+        output.resize(capacity, 0);
+        output[..input.len()].copy_from_slice(&input);
+
+        let mut text_len = input.len() as i32;
+        let mut limit = text_len;
+        status = icu_ffi::U_ZERO_ERROR;
+        unsafe {
+            (f.utrans_transUChars)(
+                trans,
+                output.as_mut_ptr(),
+                &mut text_len,
+                capacity as i32,
+                0,
+                &mut limit,
+                &mut status,
+            );
+        }
+
+        if status == icu_ffi::U_BUFFER_OVERFLOW_ERROR {
+            capacity = capacity.saturating_mul(2);
+            continue;
+        }
+        if status.is_failure() {
+            unsafe {
+                (f.utrans_close)(trans);
+            }
+            return Err(ICU_MISSING_ERROR);
+        }
+        output.truncate(text_len as usize);
+        break;
+    }
+    unsafe { (f.utrans_close)(trans) };
+
+    String::from_utf16(&output).map(|s| s.into_bytes()).map_err(|_| ICU_MISSING_ERROR)
+}
+
 mod icu_ffi {
     #![allow(dead_code, non_camel_case_types)]
 
@@ -1113,7 +1179,6 @@ mod icu_ffi {
     pub type u_errorName = unsafe extern "C" fn(code: UErrorCode) -> *const c_char;
 
     pub struct UConverter;
-
     pub type ucnv_getAvailableName = unsafe extern "C" fn(n: i32) -> *const c_char;
 
     pub type ucnv_getStandardName = unsafe extern "C" fn(
@@ -1289,6 +1354,36 @@ mod icu_ffi {
         status: &mut UErrorCode,
     ) -> *mut UText;
     pub type utext_close = unsafe extern "C" fn(ut: *mut UText) -> *mut UText;
+
+    #[repr(i32)]
+    pub enum UTransDirection {
+        UTRANS_FORWARD = 0,
+        UTRANS_REVERSE = 1,
+    }
+
+    #[repr(C)]
+    pub struct UTransliterator;
+
+    pub type utrans_openU = unsafe extern "C" fn(
+        id: *const u16,
+        id_length: i32,
+        dir: UTransDirection,
+        rules: *const u16,
+        rules_length: i32,
+        parse_error: *mut UParseError,
+        status: &mut UErrorCode,
+    ) -> *mut UTransliterator;
+
+    pub type utrans_close = unsafe extern "C" fn(trans: *mut UTransliterator);
+    pub type utrans_transUChars = unsafe extern "C" fn(
+        trans: *const UTransliterator,
+        text: *mut u16,
+        text_length: &mut i32,
+        text_capacity: i32,
+        start: i32,
+        limit: &mut i32,
+        status: &mut UErrorCode,
+    );
 
     #[repr(C)]
     pub struct UParseError {

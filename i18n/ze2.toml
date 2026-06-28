@@ -3046,3 +3046,38 @@ ar = "Selection to lowercased"
 bn = "নির্বাচিত অংশকে lowercased করুন"
 zh-hans = "选中字母小写"
 zh-hant = "將選擇的字轉成小寫"
+
+[UtilsSelectedToHalfWidth]
+en = "Selected to Half Width"
+ar = "Selection to Half Width"
+bn = "নির্বাচিত অংশকে Half Width করুন"
+zh-hans = "选中半角"
+zh-hant = "選中半角"
+
+[UtilsSelectedToFullWidth]
+en = "Selected to Full Width"
+ar = "Selection to Full Width"
+bn = "নির্বাচিত অংশকে Full Width করুন"
+zh-hans = "选中全角"
+zh-hant = "選中全角"
+
+[UtilsSelectedToLatin]
+en = "Selected to Latin"
+ar = "Selection to Latin"
+bn = "নির্বাচিত অংশকে Latin করুন"
+zh-hans = "选中拉丁"
+zh-hant = "選中拉丁"
+
+[UtilsSelectedToKatakana]
+en = "Selected to Katakana"
+ar = "Selection to Katakana"
+bn = "নির্বাচিত অংশকে Katakana করুন"
+zh-hans = "选中片假名"
+zh-hant = "選中片假名"
+
+[UtilsSelectedToHiragana]
+en = "Selected to Hirakana"
+ar = "Selection to Hirakana"
+bn = "নির্বাচিত অংশকে Hirakana করুন"
+zh-hans = "选中平假名"
+zh-hant = "選中平假名"

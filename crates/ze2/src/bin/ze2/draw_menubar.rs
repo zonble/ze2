@@ -306,10 +306,25 @@ fn draw_menu_utils(ctx: &mut Context, state: &mut State) {
         execute_command(ctx, state, Command::WordCount);
     }
     if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToUppercased), 'U', vk::NULL) {
-        execute_command(ctx, state, Command::Uppercase);
+        execute_command(ctx, state, Command::TransformUppercase);
     }
     if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToLowercased), 'L', vk::NULL) {
-        execute_command(ctx, state, Command::Lowercase);
+        execute_command(ctx, state, Command::TransformLowercase);
+    }
+    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToHalfWidth), 'H', vk::NULL) {
+        execute_command(ctx, state, Command::TransformHalfWidth);
+    }
+    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToFullWidth), 'F', vk::NULL) {
+        execute_command(ctx, state, Command::TransformFullWidth);
+    }
+    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToLatin), 'A', vk::NULL) {
+        execute_command(ctx, state, Command::TransformLatin);
+    }
+    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToKatakana), 'K', vk::NULL) {
+        execute_command(ctx, state, Command::TransformKatakana);
+    }
+    if ctx.menubar_menu_button(loc(LocId::UtilsSelectedToHiragana), 'I', vk::NULL) {
+        execute_command(ctx, state, Command::TransformHiragana);
     }
     ctx.menubar_menu_end();
 }

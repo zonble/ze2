@@ -74,23 +74,73 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         argument_hint: None,
     },
     CommandDefinition {
-        command: Command::Uppercase,
-        names: &["uppercase", "uc"],
+        command: Command::TransformUppercase,
+        names: &["transform-uppercase", "uppercase", "uc"],
         namesVim: &[],
         namesEmacs: &["upcase-region"],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
-        handler: uppercase,
+        handler: transform_uppercase,
         argument_hint: None,
     },
     CommandDefinition {
-        command: Command::Lowercase,
-        names: &["lowercase", "lc"],
+        command: Command::TransformLowercase,
+        names: &["transform-lowercase", "lowercase", "lc"],
         namesVim: &[],
         namesEmacs: &["downcase-region"],
         loc_id: None,
         default_focus_target: CommandFocusTarget::Default,
-        handler: lowercase,
+        handler: transform_lowercase,
+        argument_hint: None,
+    },
+    CommandDefinition {
+        command: Command::TransformHalfWidth,
+        names: &["transform-half-width", "halfwidth"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: transform_half_width,
+        argument_hint: None,
+    },
+    CommandDefinition {
+        command: Command::TransformFullWidth,
+        names: &["transform-full-width", "fullwidth"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: transform_full_width,
+        argument_hint: None,
+    },
+    CommandDefinition {
+        command: Command::TransformLatin,
+        names: &["transform-latin", "latin"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: transform_latin,
+        argument_hint: None,
+    },
+    CommandDefinition {
+        command: Command::TransformKatakana,
+        names: &["transform-katakana", "katakana"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: transform_katakana,
+        argument_hint: None,
+    },
+    CommandDefinition {
+        command: Command::TransformHiragana,
+        names: &["transform-hiragana", "hiragana"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: transform_hiragana,
         argument_hint: None,
     },
     CommandDefinition {
@@ -177,16 +227,51 @@ fn insert_date(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
     }
 }
 
-fn uppercase(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+fn transform_uppercase(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
     if let Some(doc) = state.documents.active() {
         doc.buffer.borrow_mut().change_ascii_case(true);
     }
 }
 
-fn lowercase(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+fn transform_lowercase(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
     if let Some(doc) = state.documents.active() {
         doc.buffer.borrow_mut().change_ascii_case(false);
     }
+}
+
+fn apply_icu_transform(state: &mut State, transform_id: &str) {
+    if let Some(doc) = state.documents.active() {
+        let mut buffer = doc.buffer.borrow_mut();
+        buffer.change_with_icu_transform(transform_id);
+    }
+}
+
+fn transform_half_width(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    apply_icu_transform(state, transform_id_for_half_width());
+}
+
+fn transform_full_width(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    apply_icu_transform(state, transform_id_for_full_width());
+}
+
+fn transform_latin(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    apply_icu_transform(state, "Any-Latin");
+}
+
+fn transform_katakana(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    apply_icu_transform(state, "Any-Katakana");
+}
+
+fn transform_hiragana(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    apply_icu_transform(state, "Any-Hiragana");
+}
+
+fn transform_id_for_half_width() -> &'static str {
+    "Fullwidth-Halfwidth"
+}
+
+fn transform_id_for_full_width() -> &'static str {
+    "Halfwidth-Fullwidth"
 }
 
 fn char_code(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
@@ -241,7 +326,11 @@ fn help_text(query: &str, include_vim: bool, include_emacs: bool) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{help_query_from_argument, help_text};
+    use super::{
+        help_query_from_argument, help_text, transform_id_for_full_width,
+        transform_id_for_half_width,
+    };
+    use ze2::icu;
 
     #[test]
     fn help_uses_only_the_second_token() {
@@ -259,5 +348,26 @@ mod tests {
     #[test]
     fn help_reports_unknown_command() {
         assert!(help_text("definitely-not-a-command", true, true).starts_with("no command"));
+    }
+
+    #[test]
+    fn transform_ids_match_command_names() {
+        assert_eq!(transform_id_for_half_width(), "Fullwidth-Halfwidth");
+        assert_eq!(transform_id_for_full_width(), "Halfwidth-Fullwidth");
+    }
+
+    #[test]
+    fn transform_text_ids_cover_any_input() {
+        assert_eq!("Any-Latin", "Any-Latin");
+        assert_eq!("Any-Katakana", "Any-Katakana");
+        assert_eq!("Any-Hiragana", "Any-Hiragana");
+    }
+
+    #[test]
+    fn latin_transform_can_expand_output_length() {
+        let output = icu::transform_text("Any-Latin", "我是楊維中".as_bytes()).unwrap();
+        let output = String::from_utf8(output).unwrap();
+        assert!(output.len() > "我是楊維中".len(), "got: {output}");
+        assert!(output.contains('Y') || output.contains('y'), "got: {output}");
     }
 }
