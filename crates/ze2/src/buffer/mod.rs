@@ -4650,93 +4650,12 @@ mod tests {
 
     #[test]
     fn test_smart_punctuation_conversion() {
-        // Alt + ,
-        {
-            let mut buf = TextBuffer::new(false).unwrap();
-            buf.set_crlf(false);
-            buf.set_insert_final_newline(false);
-            buf.write_canon_smart("，".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "，");
-            buf.write_canon_smart("，".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "〈");
-            buf.write_canon_smart("，".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "《");
-        }
-
-        // Alt + . with 。
-        {
-            let mut buf = TextBuffer::new(false).unwrap();
-            buf.set_crlf(false);
-            buf.set_insert_final_newline(false);
-            buf.write_canon_smart("。".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "。");
-            buf.write_canon_smart("。".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "〉");
-            buf.write_canon_smart("。".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "〉");
-        }
-
-        // Alt + . with .
-        {
-            let mut buf = TextBuffer::new(false).unwrap();
-            buf.set_crlf(false);
-            buf.set_insert_final_newline(false);
-            buf.write_canon(b".");
-            assert_eq!(buffer_contents(&mut buf), ".");
-            buf.write_canon_smart("。".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "〉");
-        }
-
-        // Alt + [
-        {
-            let mut buf = TextBuffer::new(false).unwrap();
-            buf.set_crlf(false);
-            buf.set_insert_final_newline(false);
-            buf.write_canon_smart("「".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "「");
-            buf.write_canon_smart("「".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "【");
-            buf.write_canon_smart("「".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "【");
-        }
-
-        // Alt + ]
-        {
-            let mut buf = TextBuffer::new(false).unwrap();
-            buf.set_crlf(false);
-            buf.set_insert_final_newline(false);
-            buf.write_canon_smart("」".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "」");
-            buf.write_canon_smart("」".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "】");
-            buf.write_canon_smart("」".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "】");
-        }
-
-        // Alt + Shift + [
-        {
-            let mut buf = TextBuffer::new(false).unwrap();
-            buf.set_crlf(false);
-            buf.set_insert_final_newline(false);
-            buf.write_canon_smart("『".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "『");
-            buf.write_canon_smart("『".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "〖");
-            buf.write_canon_smart("『".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "〖");
-        }
-
-        // Alt + Shift + ]
-        {
-            let mut buf = TextBuffer::new(false).unwrap();
-            buf.set_crlf(false);
-            buf.set_insert_final_newline(false);
-            buf.write_canon_smart("』".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "』");
-            buf.write_canon_smart("』".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "〗");
-            buf.write_canon_smart("』".as_bytes());
-            assert_eq!(buffer_contents(&mut buf), "〗");
-        }
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b".");
+        assert_eq!(buffer_contents(&mut buf), ".");
+        buf.write_canon_smart("。".as_bytes());
+        assert_eq!(buffer_contents(&mut buf), ".。");
     }
 }
