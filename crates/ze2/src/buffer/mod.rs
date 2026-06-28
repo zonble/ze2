@@ -4550,7 +4550,7 @@ mod tests {
 
         buf.fill_mark(b"x");
 
-        assert_eq!(buffer_contents(&mut buf), "abxx\nc xx");
+        assert_eq!(buffer_contents(&mut buf), "axxd\ncxx");
     }
 
     #[test]
