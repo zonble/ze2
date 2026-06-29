@@ -2319,14 +2319,23 @@ impl TextBuffer {
                             self.cursor_move_to_logical_internal(cursor_beg, mark_beg).visual_pos;
                         let visual_end =
                             self.cursor_move_to_logical_internal(cursor_beg, mark_end).visual_pos;
+                        let highlight_single_char = mark_beg == mark_end;
                         if visual_beg.y <= visual_line && visual_line <= visual_end.y {
                             let vis_left =
                                 if visual_line == visual_beg.y { visual_beg.x } else { 0 };
-                            let mut vis_right = if visual_line == visual_end.y {
-                                visual_end.x
-                            } else {
-                                COORD_TYPE_SAFE_MAX
-                            };
+                            let mut vis_right =
+                                if highlight_single_char && visual_line == visual_beg.y {
+                                    self.cursor_move_to_logical_internal(
+                                        cursor_beg,
+                                        Point { x: mark_beg.x + 1, y: mark_beg.y },
+                                    )
+                                    .visual_pos
+                                    .x
+                                } else if visual_line == visual_end.y {
+                                    visual_end.x
+                                } else {
+                                    COORD_TYPE_SAFE_MAX
+                                };
 
                             if self.word_wrap_column > 0 {
                                 vis_right = vis_right.min(self.word_wrap_column);

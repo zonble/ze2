@@ -7,18 +7,16 @@ use super::arguments::command_encoding_argument;
 use super::{Command, CommandArgs, CommandDefinition, CommandFocusTarget};
 use crate::state::*;
 
-pub(crate) const COMMANDS: &[CommandDefinition] = &[
-    CommandDefinition {
-        command: Command::ReopenEncoding,
-        names: &["reopen-encoding"],
-        namesVim: &["edit-encoding"],
-        namesEmacs: &["revert-buffer-with-coding-system"],
-        loc_id: None,
-        default_focus_target: CommandFocusTarget::Default,
-        handler: reopen_encoding,
-        argument_hint: Some("<encoding>"),
-    },
-];
+pub(crate) const COMMANDS: &[CommandDefinition] = &[CommandDefinition {
+    command: Command::ReopenEncoding,
+    names: &["reopen-encoding"],
+    namesVim: &["edit-encoding"],
+    namesEmacs: &["revert-buffer-with-coding-system"],
+    loc_id: None,
+    default_focus_target: CommandFocusTarget::Default,
+    handler: reopen_encoding,
+    argument_hint: Some("<encoding>"),
+}];
 
 fn reopen_encoding(ctx: &mut Context, state: &mut State, args: CommandArgs) {
     if let Some(encoding) = command_encoding_argument(&args.argument) {

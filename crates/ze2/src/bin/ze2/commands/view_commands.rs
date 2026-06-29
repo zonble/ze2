@@ -95,7 +95,6 @@ fn reflow(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
     }
 }
 
-
 fn center_text(ctx: &mut Context, state: &mut State, args: CommandArgs) {
     let center_text = command_bool_argument(&args.argument).unwrap_or(!state.wants_center_text);
     state.wants_center_text = center_text;

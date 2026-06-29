@@ -13,8 +13,8 @@ mod file_format_commands;
 mod navigation_commands;
 mod parse;
 mod search_commands;
-mod shortcuts;
 mod settings_commands;
+mod shortcuts;
 mod utility_commands;
 mod view_commands;
 

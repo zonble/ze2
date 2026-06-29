@@ -23,10 +23,10 @@ mod navigation_commands;
 mod parse;
 #[path = "../../ze2/src/bin/ze2/commands/search_commands.rs"]
 mod search_commands;
-#[path = "../../ze2/src/bin/ze2/commands/shortcuts.rs"]
-mod shortcuts;
 #[path = "../../ze2/src/bin/ze2/commands/settings_commands.rs"]
 mod settings_commands;
+#[path = "../../ze2/src/bin/ze2/commands/shortcuts.rs"]
+mod shortcuts;
 #[path = "../../ze2/src/bin/ze2/commands/utility_commands.rs"]
 mod utility_commands;
 #[path = "../../ze2/src/bin/ze2/commands/view_commands.rs"]

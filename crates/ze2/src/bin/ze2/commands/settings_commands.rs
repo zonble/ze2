@@ -4,8 +4,8 @@
 use ze2::tui::Context;
 
 use super::arguments::{
-    command_bool_argument, command_editor_color_argument, command_eof_style_argument,
-    command_encoding_argument, command_line_break_argument,
+    command_bool_argument, command_editor_color_argument, command_encoding_argument,
+    command_eof_style_argument, command_line_break_argument,
 };
 use super::{Command, CommandArgs, CommandDefinition, CommandFocusTarget};
 use crate::settings::{BindingMode, Settings};
@@ -122,7 +122,6 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         handler: set_binding,
         argument_hint: Some("original|ghostty"),
     },
-
 ];
 
 fn set_word_wrap_column(ctx: &mut Context, state: &mut State, args: CommandArgs) {
@@ -242,10 +241,10 @@ fn set_binding(ctx: &mut Context, state: &mut State, args: CommandArgs) {
             "original" => BindingMode::Original,
             _ => return,
         };
-            state.binding = binding_mode;
-            if let Err(err) = Settings::set_binding(binding_mode) {
-                error_log_add(ctx, state, err);
-            }
+        state.binding = binding_mode;
+        if let Err(err) = Settings::set_binding(binding_mode) {
+            error_log_add(ctx, state, err);
+        }
     }
 }
 
@@ -266,7 +265,6 @@ fn set_line_break(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
         doc.buffer.borrow_mut().normalize_newlines(crlf);
     }
 }
-
 
 #[cfg(test)]
 mod tests {
