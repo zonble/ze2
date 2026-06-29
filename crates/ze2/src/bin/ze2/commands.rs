@@ -14,6 +14,7 @@ mod navigation_commands;
 mod parse;
 mod search_commands;
 mod shortcuts;
+mod settings_commands;
 mod utility_commands;
 mod view_commands;
 
@@ -35,6 +36,7 @@ const COMMAND_GROUPS: &[&[CommandDefinition]] = &[
     search_commands::COMMANDS,
     navigation_commands::COMMANDS,
     view_commands::COMMANDS,
+    settings_commands::COMMANDS,
     utility_commands::COMMANDS,
 ];
 

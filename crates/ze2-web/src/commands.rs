@@ -25,6 +25,8 @@ mod parse;
 mod search_commands;
 #[path = "../../ze2/src/bin/ze2/commands/shortcuts.rs"]
 mod shortcuts;
+#[path = "../../ze2/src/bin/ze2/commands/settings_commands.rs"]
+mod settings_commands;
 #[path = "../../ze2/src/bin/ze2/commands/utility_commands.rs"]
 mod utility_commands;
 #[path = "../../ze2/src/bin/ze2/commands/view_commands.rs"]
@@ -48,6 +50,7 @@ const COMMAND_GROUPS: &[&[CommandDefinition]] = &[
     search_commands::COMMANDS,
     navigation_commands::COMMANDS,
     view_commands::COMMANDS,
+    settings_commands::COMMANDS,
     utility_commands::COMMANDS,
 ];
 

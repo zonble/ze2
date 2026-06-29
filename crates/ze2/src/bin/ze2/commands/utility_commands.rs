@@ -5,11 +5,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ze2::tui::Context;
 
-use super::arguments::command_bool_argument;
 use super::parse::normalize_command_name;
 use super::{Command, CommandArgs, CommandDefinition, CommandFocusTarget, command_definitions};
 use crate::localization::LocId;
-use crate::settings::{BindingMode, Settings};
+use crate::settings::BindingMode;
 use crate::state::*;
 
 pub(crate) const COMMANDS: &[CommandDefinition] = &[
@@ -133,36 +132,6 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         handler: transform_traditional_chinese,
         argument_hint: None,
     },
-        CommandDefinition {
-        command: Command::EnableVimCommands,
-        names: &["set-vim-commands-enabled"],
-        namesVim: &[],
-        namesEmacs: &[],
-        loc_id: None,
-        default_focus_target: CommandFocusTarget::Default,
-        handler: enable_vim_commands,
-        argument_hint: Some("<bool>"),
-    },
-    CommandDefinition {
-        command: Command::EnableEmacsCommands,
-        names: &["set-emacs-commands-enabled"],
-        namesVim: &[],
-        namesEmacs: &[],
-        loc_id: None,
-        default_focus_target: CommandFocusTarget::Default,
-        handler: enable_emacs_commands,
-        argument_hint: Some("<bool>"),
-    },
-    CommandDefinition {
-        command: Command::SetBinding,
-        names: &["set-binding"],
-        namesVim: &[],
-        namesEmacs: &[],
-        loc_id: None,
-        default_focus_target: CommandFocusTarget::Default,
-        handler: set_binding,
-        argument_hint: Some("original|ghostty"),
-    },
     CommandDefinition {
         command: Command::CharCode,
         names: &["char-code", "char", "chr"],
@@ -201,34 +170,6 @@ fn about(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
 
 fn word_count(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
     state.wants_word_count = true;
-}
-
-fn enable_vim_commands(ctx: &mut Context, state: &mut State, args: CommandArgs) {
-    let enabled = command_bool_argument(&args.argument).unwrap_or(true);
-    state.command_bar_include_vim_commands = enabled;
-    if let Err(err) = Settings::set_command_bar_include_vim_commands(enabled) {
-        error_log_add(ctx, state, err);
-    }
-}
-
-fn enable_emacs_commands(ctx: &mut Context, state: &mut State, args: CommandArgs) {
-    let enabled = command_bool_argument(&args.argument).unwrap_or(true);
-    state.command_bar_include_emacs_commands = enabled;
-    if let Err(err) = Settings::set_command_bar_include_emacs_commands(enabled) {
-        error_log_add(ctx, state, err);
-    }
-}
-
-fn set_binding(ctx: &mut Context, state: &mut State, args: CommandArgs) {
-    let binding = match args.argument.as_deref().map(str::trim) {
-        Some("ghostty") => BindingMode::Ghostty,
-        Some("original") => BindingMode::Original,
-        _ => return,
-    };
-    state.binding = binding;
-    if let Err(err) = Settings::set_binding(binding) {
-        error_log_add(ctx, state, err);
-    }
 }
 
 fn query_setting(_ctx: &mut Context, state: &mut State, args: CommandArgs) {
