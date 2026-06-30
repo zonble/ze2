@@ -221,6 +221,16 @@ pub(crate) const COMMANDS: &[CommandDefinition] = &[
         argument_hint: None,
     },
     CommandDefinition {
+        command: Command::MarkSelection,
+        names: &["mark-selection", "ms"],
+        namesVim: &[],
+        namesEmacs: &[],
+        loc_id: None,
+        default_focus_target: CommandFocusTarget::Default,
+        handler: mark_selection,
+        argument_hint: None,
+    },
+    CommandDefinition {
         command: Command::Unmark,
         names: &["unmark", "um"],
         namesVim: &[],
@@ -454,6 +464,12 @@ fn mark_block(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
             return;
         }
         tb.mark(TextMarkKind::Block);
+    }
+}
+
+fn mark_selection(_ctx: &mut Context, state: &mut State, _args: CommandArgs) {
+    if let Some(doc) = state.documents.active() {
+        doc.buffer.borrow_mut().mark_selection();
     }
 }
 

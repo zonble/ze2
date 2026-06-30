@@ -2895,6 +2895,18 @@ impl TextBuffer {
         });
     }
 
+    // Convert selection to a mark. This is useful for commands that operate on
+    // the current selection.
+    pub fn mark_selection(&mut self) {
+        if let Some(selection) = self.selection {
+            let beg = selection.beg;
+            let end = selection.end;
+            let kind = TextMarkKind::Char;
+            self.mark =
+                Some(TextMark { kind, coord_system: TextMarkCoordSystem::Logical, beg, end });
+        }
+    }
+
     pub fn clear_mark(&mut self) {
         self.mark = None;
         self.set_selection(None);
@@ -4674,6 +4686,22 @@ mod tests {
         buf.mark(TextMarkKind::Block);
 
         assert_eq!(buffer_contents(&mut buf), "So中me(mark) if mark.kind == kind => TextMark {");
+    }
+
+    #[test]
+    fn test_mark_selection() {
+        let mut buf = TextBuffer::new(false).unwrap();
+        buf.set_crlf(false);
+        buf.set_insert_final_newline(false);
+        buf.write_raw(b"abcd\nefgh");
+        buf.cursor_move_to_logical(Point { x: 1, y: 0 });
+        buf.select_all();
+        buf.mark_selection();
+
+        let mark = buf.mark.expect("selection should be converted to a mark");
+        assert!(matches!(mark.kind, TextMarkKind::Char));
+        assert_eq!(mark.beg, Point { x: 0, y: 0 });
+        assert_eq!(mark.end, Point { x: 4, y: 1 });
     }
 
     #[test]

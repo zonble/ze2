@@ -36,6 +36,7 @@ pub enum Command {
     MarkLine,
     MarkChar,
     MarkBlock,
+    MarkSelection,
     Unmark,
     CopyMark,
     MoveMark,
